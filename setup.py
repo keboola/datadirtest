@@ -3,7 +3,7 @@ import setuptools
 
 setup(
     name='datadirtest',
-    version='0.0.8',
+    version='1.0.1',
     setup_requires=['setuptools_scm'],
     url='https://bitbucket.org/kds_consulting_team/data-dir-test',
     download_url='https://bitbucket.org/kds_consulting_team/data-dir-test',
