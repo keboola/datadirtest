@@ -1,29 +1,28 @@
-# README #
+# Data Dir Test #
 
-This README would normally document whatever steps are necessary to get your application up and running.
+This library enables functional testing for Keboola components and processors by comparing expected and 
+real output directories.
 
-### What is this repository for? ###
+### Introduction ###
+By defining a direc
 
-* Quick summary
-* Version
-* [Learn Markdown](https://bitbucket.org/tutorials/markdowndemo)
+## Quickstart ##
 
-### How do I get set up? ###
+### Installation ###
 
-* Summary of set up
-* Configuration
-* Dependencies
-* Database configuration
-* How to run tests
-* Deployment instructions
+Add to requirements 
+```
+https://bitbucket.org/kds_consulting_team/datadirtest/get/VERSION_NUMBER.zip#egg=datadirtest
+```
 
-### Contribution guidelines ###
+Or install via PIP
+```
+pip install https://bitbucket.org/kds_consulting_team/datadirtest/get/VERSION_NUMBER.zip#egg=datadirtest
+```
 
-* Writing tests
-* Code review
-* Other guidelines
+### Use of the library ###
 
-### Who do I talk to? ###
+How to add it to the bitbucket pipeline to run tests
 
-* Repo owner or admin
-* Other community or team contact
+### Core structure & functionality ###
+How it works

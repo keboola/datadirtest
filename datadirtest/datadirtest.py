@@ -34,7 +34,7 @@ class DataDirTester:
             test_runner.run(dir_test_suite)
 
     @staticmethod
-    def get_testing_dirs(data_dir:str) -> List:
+    def get_testing_dirs(data_dir: str) -> List:
         """
         Gets directories within a directory that do not start with an underscore
 
@@ -47,8 +47,7 @@ class DataDirTester:
         return [os.path.join(data_dir, o) for o in os.listdir(data_dir) if
                 os.path.isdir(os.path.join(data_dir, o)) and not o.startswith('_')]
 
-    @staticmethod
-    def get_dir_test_suite(test_data_dir, component_script):
+    def get_dir_test_suite(self, test_data_dir: str):
         """
         Creates a test suite for a directory, each test is added using addTest to pass through parameters
 
@@ -63,7 +62,7 @@ class DataDirTester:
         suite = unittest.TestSuite()
         suite.addTest(TestDataDir(method_name='compare_source_and_expected',
                                   data_dir=test_data_dir,
-                                  component_script=component_script))
+                                  component_script=self.component_script))
         return suite
 
 
@@ -73,7 +72,7 @@ class TestDataDir(unittest.TestCase):
     specified expected output of that component and its configuration
     """
 
-    def __init__(self, method_name, data_dir, component_script):
+    def __init__(self, method_name: str, data_dir: str, component_script: str):
         """
         Args:
             method_name: name of the testing method to be run
@@ -112,29 +111,47 @@ class TestDataDir(unittest.TestCase):
             self.test_compare_files(tables_expected_path, tables_real_path)
 
     @staticmethod
-    def get_data_paths(test_dir, dir_type):
+    def get_data_paths(data_dir: str, dir_type: str):
         """
+        Uses the Keboola data structure to return paths to files and tables
 
         Args:
-            test_dir:
-            dir_type: type o
+            data_dir: path of directory to get file and table paths from
+            dir_type: type of directory source or expected
 
         Returns:
-
+            paths to files and tables
         """
-        files_expected_path = path.join(test_dir, dir_type, 'data', 'out', 'files')
-        tables_expected_path = path.join(test_dir, dir_type, 'data', 'out', 'tables')
+        files_expected_path = path.join(data_dir, dir_type, 'data', 'out', 'files')
+        tables_expected_path = path.join(data_dir, dir_type, 'data', 'out', 'tables')
         return files_expected_path, tables_expected_path
 
     @staticmethod
-    def get_all_files_in_dir(dir_path):
+    def get_all_files_in_dir(dir_path: str):
+        """
+        Gets all non-hidden files from a directory and its subdirectory
+
+        Args:
+            dir_path: path of directory to fetch files from
+
+        Returns:
+            list of files in the directory
+        """
         files = []
         for sub_dir, dir_names, file_names in os.walk(dir_path):
             for filename in [f for f in file_names if not f.startswith(".")]:
                 files.append(os.path.join(sub_dir, filename))
         return files
 
-    def test_compare_dirs(self, expected_path, real_path):
+    def test_compare_dirs(self, expected_path: str, real_path: str):
+        """
+        Tests whether directory structures of two directories are the same.
+        If not the error message prints out which files differ in each directory
+
+        Args:
+            expected_path: Path holding the directory of expected files
+            real_path: Path holding the directory of real/source files
+        """
         compared_dir = filecmp.dircmp(expected_path, real_path)
 
         left = [file for file in compared_dir.left_only if not file.startswith('.')]
@@ -143,7 +160,15 @@ class TestDataDir(unittest.TestCase):
         self.assertEqual(left, [], f" Files : {left} exists only in expected output and not in actual output")
         self.assertEqual(right, [], f" Files : {right} exists only in actual output and not in expected output")
 
-    def test_compare_files(self, files_expected_path, files_real_path):
+    def test_compare_files(self, files_expected_path: str, files_real_path: str):
+        """
+        Tests whether files in two directories are the same.
+        If not the error message prints out which files differ in each directory
+
+        Args:
+            files_expected_path:  Path holding expected files
+            files_real_path: Path holding real/source files
+        """
         f = self.get_all_files_in_dir(files_expected_path)
         f = [file.replace(files_expected_path, "").strip("/") for file in f]
         equal, mismatch, errors = filecmp.cmpfiles(files_expected_path, files_real_path, f, shallow=False)
