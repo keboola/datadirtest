@@ -109,6 +109,7 @@ class TestDataDir(unittest.TestCase):
         if path.exists(tables_expected_path) or path.exists(tables_real_path):
             self.test_compare_dirs(tables_expected_path, tables_real_path)
             self.test_compare_files(tables_expected_path, tables_real_path)
+        logging.info("Tests passed success")
 
     @staticmethod
     def get_data_paths(data_dir: str, dir_type: str):
