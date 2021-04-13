@@ -29,7 +29,7 @@ class DataDirTester:
         """
         testing_dirs = self.get_testing_dirs(self.data_dir)
         for testing_dir in testing_dirs:
-            dir_test_suite = self.get_dir_test_suite(testing_dir, self.component_script)
+            dir_test_suite = self.get_dir_test_suite(testing_dir)
             test_runner = unittest.TextTestRunner(verbosity=3)
             test_runner.run(dir_test_suite)
 
