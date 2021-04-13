@@ -85,7 +85,7 @@ class TestDataDir(unittest.TestCase):
 
     def setUp(self):
         logging.info(f"Running {self.component_script} with configuration from {self.data_dir}")
-        self.run_component(self.data_dir)
+        self.run_component()
 
     def run_component(self):
         """
