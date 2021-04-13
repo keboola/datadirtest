@@ -178,9 +178,19 @@ class TestDataDir(unittest.TestCase):
         self.assertEqual(errors, [], f" Files : {errors} could not be compared")
 
 
+def list_files(startpath):
+    for root, dirs, files in os.walk(startpath):
+        level = root.replace(startpath, '').count(os.sep)
+        indent = ' ' * 4 * (level)
+        print('{}{}/'.format(indent, os.path.basename(root)))
+        subindent = ' ' * 4 * (level + 1)
+        for f in files:
+            print('{}{}'.format(subindent, f))
+
 if __name__ == "__main__":
     data_dir_path = sys.argv[1]
     data_dir_tester = DataDirTester(data_dir_path)
+    list_files(data_dir_path)
 
     if len(sys.argv) == 3:
         component_script = sys.argv[2]
