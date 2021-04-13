@@ -91,7 +91,8 @@ class TestDataDir(unittest.TestCase):
         """
         Runs a component script with a specified configuration
         """
-        source_dir = path.join(self.data_dir, "/source/data/")
+        source_dir = path.join(self.data_dir, "source","data")
+        logging.info(source_dir)
         run_path(self.component_script, init_globals=dict(os.environ, KBC_DATADIR=source_dir), run_name='__main__')
 
     def compare_source_and_expected(self):
@@ -109,7 +110,7 @@ class TestDataDir(unittest.TestCase):
         if path.exists(tables_expected_path) or path.exists(tables_real_path):
             self.test_compare_dirs(tables_expected_path, tables_real_path)
             self.test_compare_files(tables_expected_path, tables_real_path)
-        logging.info("Tests passed success")
+        logging.info("Tests passed successfully ")
 
     @staticmethod
     def get_data_paths(data_dir: str, dir_type: str):
