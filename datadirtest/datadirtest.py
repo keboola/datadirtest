@@ -190,7 +190,7 @@ def list_files(startpath):
 if __name__ == "__main__":
     data_dir_path = sys.argv[1]
     data_dir_tester = DataDirTester(data_dir_path)
-    list_files(data_dir_path)
+    list_files(os.getcwd())
 
     if len(sys.argv) == 3:
         component_script = sys.argv[2]
