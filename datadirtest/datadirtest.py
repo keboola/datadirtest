@@ -1,11 +1,30 @@
-import sys
-import unittest
-import os
-import logging
 from os import path
-from typing import List
 from runpy import run_path
+
 import filecmp
+import logging
+import os
+import shutil
+import sys
+import tempfile
+import unittest
+from typing import List, Optional
+
+
+class dircmpfiles(filecmp.dircmp):
+    """
+    Compare the content of dir1 and dir2. In contrast with filecmp.dircmp, this
+    subclass compares the content of files with the same file_path.
+    """
+
+    def phase3(self):
+        """
+        Find out differences between common files.
+        Ensure we are using content comparison with shallow=False.
+        """
+        fcomp = filecmp.cmpfiles(self.left, self.right, self.common_files,
+                                 shallow=False)
+        self.same_files, self.diff_files, self.funny_files = fcomp
 
 
 class DataDirTester:
@@ -17,8 +36,8 @@ class DataDirTester:
     def __init__(self, data_dir: str, component_script: str = "src/component.py"):
         """
         Args:
-            data_dir: path to directory that holds functional test directories
-            component_script: path to the component script
+            data_dir: file_path to directory that holds functional test directories
+            component_script: file_path to the component script
         """
         self.data_dir = data_dir
         self.component_script = component_script
@@ -28,10 +47,9 @@ class DataDirTester:
         Gathers functional test directories and creates a test suite for each one of them, then runs them.
         """
         testing_dirs = self.get_testing_dirs(self.data_dir)
-        for testing_dir in testing_dirs:
-            dir_test_suite = self.get_dir_test_suite(testing_dir)
-            test_runner = unittest.TextTestRunner(verbosity=3)
-            test_runner.run(dir_test_suite)
+        dir_test_suite = self.build_dir_test_suite(testing_dirs)
+        test_runner = unittest.TextTestRunner(verbosity=3)
+        test_runner.run(dir_test_suite)
 
     @staticmethod
     def get_testing_dirs(data_dir: str) -> List:
@@ -47,22 +65,22 @@ class DataDirTester:
         return [os.path.join(data_dir, o) for o in os.listdir(data_dir) if
                 os.path.isdir(os.path.join(data_dir, o)) and not o.startswith('_')]
 
-    def get_dir_test_suite(self, test_data_dir: str):
+    def build_dir_test_suite(self, testing_dirs):
         """
         Creates a test suite for a directory, each test is added using addTest to pass through parameters
 
         Args:
-            test_data_dir: directory that holds data for the test
-            component_script: path to the component script
+            testing_dirs: directories that holds data for the test
 
         Returns:
             Unittest Suite containing all functional tests
 
         """
         suite = unittest.TestSuite()
-        suite.addTest(TestDataDir(method_name='compare_source_and_expected',
-                                  data_dir=test_data_dir,
-                                  component_script=self.component_script))
+        for testing_dir in testing_dirs:
+            suite.addTest(TestDataDir(method_name='compare_source_and_expected',
+                                      data_dir=testing_dir,
+                                      component_script=self.component_script))
         return suite
 
 
@@ -76,29 +94,51 @@ class TestDataDir(unittest.TestCase):
         """
         Args:
             method_name: name of the testing method to be run
-            data_dir: path to directory which holds the component config, source, and expected directories
-            component_script: path to component script that should be run
+            data_dir: file_path to directory which holds the component config, source, and expected directories
+            component_script: file_path to component script that should be run
         """
         super(TestDataDir, self).__init__(methodName=method_name)
         self.component_script = component_script
-        self.data_dir = data_dir
+        self.orig_dir = data_dir
+        self.expected_path = path.join(data_dir, 'expected')
 
     def setUp(self):
-        logging.info(f"Running {self.component_script} with configuration from {self.data_dir}")
-        self.run_component()
+        self.data_dir = self._create_temporary_copy()
+
+    def tearDown(self) -> None:
+        shutil.rmtree(self.data_dir)
+
+    def id(self):
+        return path.basename(self.orig_dir)
+
+    def shortDescription(self) -> Optional[str]:
+        return path.basename(self.orig_dir)
+
+    def _create_temporary_copy(self):
+        temp_dir = tempfile.gettempdir()
+        dst_path = path.join(temp_dir, 'test_data')
+        if path.exists(dst_path):
+            shutil.rmtree(dst_path)
+
+        shutil.copytree(self.orig_dir, dst_path)
+        return dst_path
 
     def run_component(self):
         """
         Runs a component script with a specified configuration
         """
-        source_dir = path.join("code", self.data_dir, "source", "data")
+        source_dir = path.join(self.data_dir, "source", "data")
+        os.environ["KBC_DATADIR"] = source_dir
         run_path(self.component_script, run_name='__main__')
 
     def compare_source_and_expected(self):
         """
-        Compares source and expected directories based on the nested directory structure and files within them
+        Executes and compares source and expected directories based on the nested directory structure and files
+        within them
 
         """
+        logging.info(f"Running {self.component_script} with configuration from {self.data_dir}")
+        self.run_component()
 
         files_expected_path, tables_expected_path = self.get_data_paths(self.data_dir, 'expected')
         files_real_path, tables_real_path = self.get_data_paths(self.data_dir, 'source')
@@ -117,7 +157,7 @@ class TestDataDir(unittest.TestCase):
         Uses the Keboola data structure to return paths to files and tables
 
         Args:
-            data_dir: path of directory to get file and table paths from
+            data_dir: file_path of directory to get file and table paths from
             dir_type: type of directory source or expected
 
         Returns:
@@ -133,7 +173,7 @@ class TestDataDir(unittest.TestCase):
         Gets all non-hidden files from a directory and its subdirectory
 
         Args:
-            dir_path: path of directory to fetch files from
+            dir_path: file_path of directory to fetch files from
 
         Returns:
             list of files in the directory
@@ -170,9 +210,9 @@ class TestDataDir(unittest.TestCase):
             files_expected_path:  Path holding expected files
             files_real_path: Path holding real/source files
         """
-        f = self.get_all_files_in_dir(files_expected_path)
-        f = [file.replace(files_expected_path, "").strip("/") for file in f]
-        equal, mismatch, errors = filecmp.cmpfiles(files_expected_path, files_real_path, f, shallow=False)
+        file_paths = self.get_all_files_in_dir(files_expected_path)
+        common_files = [file.replace(files_expected_path, "").strip("/").strip('\\') for file in file_paths]
+        equal, mismatch, errors = filecmp.cmpfiles(files_expected_path, files_real_path, common_files, shallow=False)
         self.assertEqual(mismatch, [], f" Files : {mismatch} do not match")
         self.assertEqual(errors, [], f" Files : {errors} could not be compared")
 
@@ -182,7 +222,7 @@ if __name__ == "__main__":
     data_dir_tester = DataDirTester(data_dir_path)
 
     if len(sys.argv) == 3:
-        component_script = sys.argv[2]
-        data_dir_tester = DataDirTester(data_dir_path, component_script=component_script)
+        script_path = sys.argv[2]
+        data_dir_tester = DataDirTester(data_dir_path, component_script=script_path)
 
     data_dir_tester.run()
