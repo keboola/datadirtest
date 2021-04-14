@@ -92,7 +92,7 @@ class TestDataDir(unittest.TestCase):
         Runs a component script with a specified configuration
         """
         source_dir = path.join("code", self.data_dir, "source", "data")
-        run_path(self.component_script, data_folder_path=source_dir, run_name='__main__')
+        run_path(self.component_script, run_name='__main__')
 
     def compare_source_and_expected(self):
         """
