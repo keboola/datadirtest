@@ -22,7 +22,59 @@ pip install https://bitbucket.org/kds_consulting_team/datadirtest/get/VERSION_NU
 
 ### Use of the library ###
 
-How to add it to the bitbucket pipeline to run tests
+In the tests folder create a directory structure mimicking the directory structure in production:
+
+```
+/path/to/project/tests
+└─functional
+    └─test-name
+      ├─expected-code
+      ├─expected
+      │ └─data
+      │   └─out
+      │     ├─files
+      │     └─tables
+      ├─source
+      │ └─data
+      │   └─in
+      │     ├─files
+      │     └─tables
+      └─config.json
+```
+
+- `source` - contains data folder that would be on the input of the component
+- `expected` - contains data folder that is result of the execution against the `source` folder. 
+Include only folder that contain some files, e.g. `expected/files/out/file.json` 
+
+The `DataDirTester` looks for the `component.py` script and executes it against the specified source folders, 
+the `component.py` should expect the data folder path in the environment variable `KBC_DATADIR`.
+
+By default it looks for the script at this path:
+```
+/path/to/project
+└─src
+    └─component.py
+```
+
+Then create file `test_functional.py` in the `/path/to/project/tests` folder and input the following:
+
+```
+import unittest
+
+from datadirtest import DataDirTester
+
+
+class TestComponent(unittest.TestCase):
+
+    def test_functional(self):
+        functional_tests = DataDirTester()
+        functional_tests.run()
+
+
+if __name__ == "__main__":
+    unittest.main()
+```
+
+Then run your tests as usual e.g. via `python -m unittest discover`
 
 ### Core structure & functionality ###
-How it works
