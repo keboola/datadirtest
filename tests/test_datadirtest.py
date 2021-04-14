@@ -7,7 +7,7 @@ from datadirtest import datadirtest
 class TestComponent(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.mock_datadirtest = datadirtest.TestDataDir('compare_source_and_expected', '', '')
+        self.mock_datadirtest = datadirtest.TestDataDir('', '')
         self.test_datadirs = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                           'resources')
 
