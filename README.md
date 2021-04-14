@@ -75,6 +75,6 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-Then run your tests as usual e.g. via `python -m unittest discover`
+Then run your tests as usual e.g. via `python -m unittest discover` from the root folder.
 
 ### Core structure & functionality ###

@@ -8,7 +8,7 @@ import unittest
 from os import path
 from pathlib import Path
 from runpy import run_path
-from typing import List, Optional, Union
+from typing import List, Optional
 
 
 class DataDirTester:
@@ -25,8 +25,8 @@ class DataDirTester:
         Include only folder that contain some files, e.g. `expected/files/out/file.json`
     """
 
-    def __init__(self, data_dir: Union[str, Path] = Path('./functional'),
-                 component_script: Union[str, Path] = Path('../src/component.py')):
+    def __init__(self, data_dir: str = Path('./tests/functional').absolute().as_posix(),
+                 component_script: str = Path('./src/component.py').absolute().as_posix()):
         """
         The `DataDirTester` looks for the `component.py` script and executes it against the specified source folders,
         the `component.py` should expect the data folder path in the environment variable `KBC_DATADIR`.
