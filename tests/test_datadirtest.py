@@ -15,7 +15,7 @@ class TestComponent(unittest.TestCase):
         expected = os.path.join(self.test_datadirs, 'foldered_diff', 'expected')
         source = os.path.join(self.test_datadirs, 'foldered_diff', 'source')
         with self.assertRaises(AssertionError):
-            self.mock_datadirtest.test_compare_files(expected, source)
+            self.mock_datadirtest.assert_directory_files_contents_match(expected, source)
 
 
 if __name__ == "__main__":

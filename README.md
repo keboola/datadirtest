@@ -79,4 +79,11 @@ if __name__ == "__main__":
 
 Then run your tests as usual e.g. via `python -m unittest discover` from the root folder.
 
-### Core structure & functionality ###
+
+
+**Alternatively** run as:
+
+```
+python -m datadirtest /path/to/project/tests/functional [optionally path/to/project/script.py]
+```
+
