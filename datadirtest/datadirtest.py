@@ -47,7 +47,9 @@ class DataDirTester:
         testing_dirs = self._get_testing_dirs(self.data_dir)
         dir_test_suite = self._build_dir_test_suite(testing_dirs)
         test_runner = unittest.TextTestRunner(verbosity=3)
-        test_runner.run(dir_test_suite)
+        result = test_runner.run(dir_test_suite)
+        if not result.wasSuccessful():
+            raise AssertionError(f'Functional test suite failed. {result.errors}')
 
     @staticmethod
     def _get_testing_dirs(data_dir: str) -> List:
