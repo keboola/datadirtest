@@ -28,15 +28,6 @@ class DataDirTester:
     def __init__(self, data_dir: str = Path('./tests/functional').absolute().as_posix(),
                  component_script: str = Path('./src/component.py').absolute().as_posix()):
         """
-        The `DataDirTester` looks for the `component.py` script and executes it against the specified source folders,
-        the `component.py` should expect the data folder path in the environment variable `KBC_DATADIR`.
-
-        Each test is specified by a folder containing following folder structure:
-
-        - `source` - contains data folder that would be on the input of the component
-        - `expected` - contains data folder that is result of the execution against the `source` folder.
-        Include only folder that contain some files, e.g. `expected/files/out/file.json`
-
 
         Args:
             data_dir:
@@ -56,7 +47,9 @@ class DataDirTester:
         testing_dirs = self._get_testing_dirs(self.data_dir)
         dir_test_suite = self._build_dir_test_suite(testing_dirs)
         test_runner = unittest.TextTestRunner(verbosity=3)
-        test_runner.run(dir_test_suite)
+        result = test_runner.run(dir_test_suite)
+        if not result.wasSuccessful():
+            raise AssertionError(f'Functional test suite failed. {result.errors}')
 
     @staticmethod
     def _get_testing_dirs(data_dir: str) -> List:
@@ -151,11 +144,11 @@ class TestDataDir(unittest.TestCase):
         files_real_path, tables_real_path = self.get_data_paths(self.data_dir, 'source')
 
         if path.exists(files_expected_path) or path.exists(files_real_path):
-            self.test_compare_dirs(files_expected_path, files_real_path)
-            self.test_compare_files(files_expected_path, files_real_path)
+            self.assert_directory_structure_match(files_expected_path, files_real_path)
+            self.assert_directory_files_contents_match(files_expected_path, files_real_path)
         if path.exists(tables_expected_path) or path.exists(tables_real_path):
-            self.test_compare_dirs(tables_expected_path, tables_real_path)
-            self.test_compare_files(tables_expected_path, tables_real_path)
+            self.assert_directory_structure_match(tables_expected_path, tables_real_path)
+            self.assert_directory_files_contents_match(tables_expected_path, tables_real_path)
         logging.info("Tests passed successfully ")
 
     @staticmethod
@@ -191,7 +184,7 @@ class TestDataDir(unittest.TestCase):
                 files.append(os.path.join(sub_dir, filename))
         return files
 
-    def test_compare_dirs(self, expected_path: str, real_path: str):
+    def assert_directory_structure_match(self, expected_path: str, real_path: str):
         """
         Tests whether directory structures of two directories are the same.
         If not the error message prints out which files differ in each directory
@@ -208,7 +201,7 @@ class TestDataDir(unittest.TestCase):
         self.assertEqual(left, [], f" Files : {left} exists only in expected output and not in actual output")
         self.assertEqual(right, [], f" Files : {right} exists only in actual output and not in expected output")
 
-    def test_compare_files(self, files_expected_path: str, files_real_path: str):
+    def assert_directory_files_contents_match(self, files_expected_path: str, files_real_path: str):
         """
         Tests whether files in two directories are the same.
         If not the error message prints out which files differ in each directory

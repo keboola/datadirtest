@@ -1,7 +1,7 @@
 import os
 import unittest
 
-from datadirtest import datadirtest
+from datadirtest import datadirtest, DataDirTester
 
 
 class TestComponent(unittest.TestCase):
@@ -15,7 +15,13 @@ class TestComponent(unittest.TestCase):
         expected = os.path.join(self.test_datadirs, 'foldered_diff', 'expected')
         source = os.path.join(self.test_datadirs, 'foldered_diff', 'source')
         with self.assertRaises(AssertionError):
-            self.mock_datadirtest.test_compare_files(expected, source)
+            self.mock_datadirtest.assert_directory_files_contents_match(expected, source)
+
+    def test_error_in_suite(self):
+        tester = DataDirTester(self.test_datadirs, os.path.join(self.test_datadirs,'script.py'))
+
+        with self.assertRaises(AssertionError):
+            tester.run()
 
 
 if __name__ == "__main__":
