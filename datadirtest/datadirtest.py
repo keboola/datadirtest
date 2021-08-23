@@ -1,10 +1,12 @@
 import filecmp
+import importlib.util
 import logging
 import os
 import shutil
 import sys
 import tempfile
 import unittest
+from importlib.abc import Loader
 from os import path
 from pathlib import Path
 from runpy import run_path
@@ -37,20 +39,27 @@ class TestDataDir(unittest.TestCase):
         self._run_set_up_script()
 
     def _run_set_up_script(self):
-        context_parameters = self.context_parameters
         start_script_path = os.path.join(self.orig_dir, 'source', 'set_up.py')
         if os.path.exists(start_script_path):
-            run_path(start_script_path)
+            script = self._load_module_at_path(start_script_path)
+            script.run(self)
 
     def tearDown(self) -> None:
         self._run_tear_down_script()
         shutil.rmtree(self.data_dir)
 
+    def _load_module_at_path(self, path):
+        spec = importlib.util.spec_from_file_location("custom_scripts", path)
+        script = importlib.util.module_from_spec(spec)
+        assert isinstance(spec.loader, Loader)
+        spec.loader.exec_module(script)
+        return script
+
     def _run_tear_down_script(self):
-        context_parameters = self.context_parameters
         end_script_path = os.path.join(self.orig_dir, 'source', 'tear_down.py')
         if os.path.exists(end_script_path):
-            run_path(end_script_path)
+            script = self._load_module_at_path(end_script_path)
+            script.run(self)
 
     def id(self):
         return path.basename(self.orig_dir)
