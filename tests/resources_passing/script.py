@@ -7,5 +7,5 @@ if __name__ == "__main__":
     out_file = Path(f'{os.environ["KBC_DATADIR"]}/out/tables/table.csv')
     out_file.parent.mkdir(parents=True, exist_ok=True)
 
-    with open(out_file):
-        print('file created')
+    open(out_file, 'a').close()
+    print('file created')
