@@ -8,80 +8,7 @@ import unittest
 from os import path
 from pathlib import Path
 from runpy import run_path
-from typing import List, Optional
-
-
-class DataDirTester:
-    """
-        Object that executes functional tests of the Keboola Connection components.
-
-        The `DataDirTester` looks for the `component.py` script and executes it against the specified source folders,
-        the `component.py` should expect the data folder path in the environment variable `KBC_DATADIR`.
-
-        Each test is specified by a folder containing following folder structure:
-
-        - `source` - contains data folder that would be on the input of the component
-        - `expected` - contains data folder that is result of the execution against the `source` folder.
-        Include only folder that contain some files, e.g. `expected/files/out/file.json`
-    """
-
-    def __init__(self, data_dir: str = Path('./tests/functional').absolute().as_posix(),
-                 component_script: str = Path('./src/component.py').absolute().as_posix()):
-        """
-
-        Args:
-            data_dir:
-                file_path to directory that holds functional test directories.
-                By default this is ./functional
-            component_script:
-                file_path to the component script
-                By default this is ../src/component.py
-        """
-        self.data_dir = data_dir
-        self.component_script = component_script
-
-    def run(self):
-        """
-            Runs functional tests specified in the provided folder based on the source/expected datadirs.
-        """
-        testing_dirs = self._get_testing_dirs(self.data_dir)
-        dir_test_suite = self._build_dir_test_suite(testing_dirs)
-        test_runner = unittest.TextTestRunner(verbosity=3)
-        result = test_runner.run(dir_test_suite)
-        if not result.wasSuccessful():
-            raise AssertionError(f'Functional test suite failed. {result.errors}')
-
-    @staticmethod
-    def _get_testing_dirs(data_dir: str) -> List:
-        """
-        Gets directories within a directory that do not start with an underscore
-
-        Args:
-            data_dir: directory which holds directories
-
-        Returns:
-            list of paths inside directory
-        """
-        return [os.path.join(data_dir, o) for o in os.listdir(data_dir) if
-                os.path.isdir(os.path.join(data_dir, o)) and not o.startswith('_')]
-
-    def _build_dir_test_suite(self, testing_dirs):
-        """
-        Creates a test suite for a directory, each test is added using addTest to pass through parameters
-
-        Args:
-            testing_dirs: directories that holds data for the test
-
-        Returns:
-            Unittest Suite containing all functional tests
-
-        """
-        suite = unittest.TestSuite()
-        for testing_dir in testing_dirs:
-            suite.addTest(TestDataDir(method_name='compare_source_and_expected',
-                                      data_dir=testing_dir,
-                                      component_script=self.component_script))
-        return suite
+from typing import List, Optional, Type
 
 
 class TestDataDir(unittest.TestCase):
@@ -90,23 +17,40 @@ class TestDataDir(unittest.TestCase):
     specified expected output of that component and its configuration
     """
 
-    def __init__(self, data_dir: str, component_script: str, method_name: str = 'compare_source_and_expected'):
+    def __init__(self, data_dir: str, component_script: str, method_name: str = 'compare_source_and_expected',
+                 context_parameters: Optional[dict] = None):
         """
         Args:
             method_name: name of the testing method to be run
             data_dir: file_path to directory which holds the component config, source, and expected directories
             component_script: file_path to component script that should be run
+            context_parameters: [Dict] Optional context parameters injected from the DirTester runner.
         """
         super(TestDataDir, self).__init__(methodName=method_name)
         self.component_script = component_script
         self.orig_dir = data_dir
         self.expected_path = path.join(data_dir, 'expected')
+        self.context_parameters = context_parameters
 
     def setUp(self):
         self.data_dir = self._create_temporary_copy()
+        self._run_set_up_script()
+
+    def _run_set_up_script(self):
+        context_parameters = self.context_parameters
+        start_script_path = os.path.join(self.orig_dir, 'source', 'set_up.py')
+        if os.path.exists(start_script_path):
+            run_path(start_script_path)
 
     def tearDown(self) -> None:
+        self._run_tear_down_script()
         shutil.rmtree(self.data_dir)
+
+    def _run_tear_down_script(self):
+        context_parameters = self.context_parameters
+        end_script_path = os.path.join(self.orig_dir, 'source', 'tear_down.py')
+        if os.path.exists(end_script_path):
+            run_path(end_script_path)
 
     def id(self):
         return path.basename(self.orig_dir)
@@ -215,6 +159,92 @@ class TestDataDir(unittest.TestCase):
         equal, mismatch, errors = filecmp.cmpfiles(files_expected_path, files_real_path, common_files, shallow=False)
         self.assertEqual(mismatch, [], f" Files : {mismatch} do not match")
         self.assertEqual(errors, [], f" Files : {errors} could not be compared")
+
+
+class DataDirTester:
+    """
+        Object that executes functional tests of the Keboola Connection components.
+
+        The `DataDirTester` looks for the `component.py` script and executes it against the specified source folders,
+        the `component.py` should expect the data folder path in the environment variable `KBC_DATADIR`.
+
+        Each test is specified by a folder containing following folder structure:
+
+        - `source` - contains data folder that would be on the input of the component
+        - `expected` - contains data folder that is result of the execution against the `source` folder.
+        Include only folder that contain some files, e.g. `expected/files/out/file.json`
+    """
+
+    def __init__(self, data_dir: str = Path('./tests/functional').absolute().as_posix(),
+                 component_script: str = Path('./src/component.py').absolute().as_posix(),
+                 test_data_dir_class: Type[TestDataDir] = TestDataDir,
+                 context_parameters: Optional[dict] = None):
+        """
+
+        Args:
+            data_dir:
+                file_path to directory that holds functional test directories.
+                By default this is ./functional
+            component_script:
+                file_path to the component script
+                By default this is ../src/component.py
+            context_parameters Dict:
+                dictionary with optional parameters that will be passed to each Test instance. Usefull when overriding
+                the TestDataDirClass to add custom functionality
+            test_data_dir_class:
+                Class extending datadirtest.TestDataDir class with additional functionality. It will be used for each
+                test in the suit.
+
+
+        """
+        self._data_dir = data_dir
+        self._component_script = component_script
+        self._context_parameters = context_parameters or {}
+        self.__test_class = test_data_dir_class
+
+    def run(self):
+        """
+            Runs functional tests specified in the provided folder based on the source/expected datadirs.
+        """
+        testing_dirs = self._get_testing_dirs(self._data_dir)
+        dir_test_suite = self._build_dir_test_suite(testing_dirs)
+        test_runner = unittest.TextTestRunner(verbosity=3)
+        result = test_runner.run(dir_test_suite)
+        if not result.wasSuccessful():
+            raise AssertionError(f'Functional test suite failed. {result.errors}')
+
+    @staticmethod
+    def _get_testing_dirs(data_dir: str) -> List:
+        """
+        Gets directories within a directory that do not start with an underscore
+
+        Args:
+            data_dir: directory which holds directories
+
+        Returns:
+            list of paths inside directory
+        """
+        return [os.path.join(data_dir, o) for o in os.listdir(data_dir) if
+                os.path.isdir(os.path.join(data_dir, o)) and not o.startswith('_')]
+
+    def _build_dir_test_suite(self, testing_dirs):
+        """
+        Creates a test suite for a directory, each test is added using addTest to pass through parameters
+
+        Args:
+            testing_dirs: directories that holds data for the test
+
+        Returns:
+            Unittest Suite containing all functional tests
+
+        """
+        suite = unittest.TestSuite()
+        for testing_dir in testing_dirs:
+            suite.addTest(self.__test_class(method_name='compare_source_and_expected',
+                                            data_dir=testing_dir,
+                                            component_script=self._component_script,
+                                            context_parameters=self._context_parameters))
+        return suite
 
 
 if __name__ == "__main__":
