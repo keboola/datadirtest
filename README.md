@@ -164,12 +164,20 @@ You may specify custom scripts that are executed before or each test execution. 
       │     ├─tables            
 ```
 
-**Example**
+**Usage**
+
+Each script (`set_up.py` and `tear_down.py`) **must implement** a `run(context: TestDataDir)` method. The `context` parameter then includes the parent
+TestDataDir instance with access to `context_parameters` if needed. Both script files are optional. If file is found but there is no `run()` method defined,
+the execution fails.
 
 The `set_up.py` may contain following code:
 
 ```python
-print("Running before script")
+from datadirtest import TestDataDir
+
+
+def run(context: TestDataDir):
+    print("Running before script")
 ```
 
 It will print the above message each time before actual test execution

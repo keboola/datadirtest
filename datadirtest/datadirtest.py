@@ -42,14 +42,20 @@ class TestDataDir(unittest.TestCase):
         start_script_path = os.path.join(self.orig_dir, 'source', 'set_up.py')
         if os.path.exists(start_script_path):
             script = self._load_module_at_path(start_script_path)
-            script.run(self)
+            try:
+                script.run(self)
+            except AttributeError:
+                raise NotImplementedError(
+                    "The set_up.py file was found but it does not implement the run(context) method. Please add the "
+                    "implementation")
 
     def tearDown(self) -> None:
         self._run_tear_down_script()
         shutil.rmtree(self.data_dir)
 
-    def _load_module_at_path(self, path):
-        spec = importlib.util.spec_from_file_location("custom_scripts", path)
+    @staticmethod
+    def _load_module_at_path(run_script_path):
+        spec = importlib.util.spec_from_file_location("custom_scripts", run_script_path)
         script = importlib.util.module_from_spec(spec)
         assert isinstance(spec.loader, Loader)
         spec.loader.exec_module(script)
@@ -59,7 +65,12 @@ class TestDataDir(unittest.TestCase):
         end_script_path = os.path.join(self.orig_dir, 'source', 'tear_down.py')
         if os.path.exists(end_script_path):
             script = self._load_module_at_path(end_script_path)
-            script.run(self)
+            try:
+                script.run(self)
+            except AttributeError:
+                raise NotImplementedError(
+                    "The tear_down.py file was found but it does not implement the run(context) method. Please add the "
+                    "implementation")
 
     def id(self):
         return path.basename(self.orig_dir)
