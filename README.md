@@ -135,23 +135,11 @@ class TestComponent(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-        
-
-        injected_value = 'injected_parameter'
-        tester = DataDirTester(self.test_datadirs, os.path.join(self.test_datadirs, 'script.py'),
-                               test_data_dir_class=CustomDatadirTest,
-                               context_parameters={'custom_parameter': injected_value})
-
-        with captured_output() as (out, err):
-            tester.run()
-
-        output = out.getvalue().strip()
-        self.assertEqual(output, injected_value)
 ```
 
 #### Using set_up and tear_down scripts
 
-You may specify custom scripts that are executed before or each test execution. Place them into the `source` folder:
+You may specify custom scripts that are executed before or after the test execution. Place them into the `source` folder:
 
 ```
       ├─source
@@ -177,7 +165,11 @@ from datadirtest import TestDataDir
 
 
 def run(context: TestDataDir):
+    # get value from the context parameters injected via DataDirTester constructor
+    sql_client = context.context_parameters['sql_client']
+    sql_client.run_query('DROP TABLE IF EXISTS T;')
+    sql_client.run_query('CREATE TABLE T AS SELECT 1 AS COLUMN;')
     print("Running before script")
 ```
 
-It will print the above message each time before actual test execution
+It will run the above script specific for the current test (folder) before the actual test execution
