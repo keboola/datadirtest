@@ -23,10 +23,10 @@ class TestDataDir(unittest.TestCase):
                  context_parameters: Optional[dict] = None):
         """
         Args:
-            method_name: name of the testing method to be run
-            data_dir: file_path to directory which holds the component config, source, and expected directories
-            component_script: file_path to component script that should be run
-            context_parameters: [Dict] Optional context parameters injected from the DirTester runner.
+            method_name (str): name of the testing method to be run
+            data_dir (str): file_path to directory which holds the component config, source, and expected directories
+            component_script (str): file_path to component script that should be run
+            context_parameters (dict): Optional context parameters injected from the DirTester runner.
         """
         super(TestDataDir, self).__init__(methodName=method_name)
         self.component_script = component_script
@@ -202,18 +202,13 @@ class DataDirTester:
         """
 
         Args:
-            data_dir:
-                file_path to directory that holds functional test directories.
-                By default this is ./functional
-            component_script:
-                file_path to the component script
-                By default this is ../src/component.py
-            context_parameters Dict:
-                dictionary with optional parameters that will be passed to each Test instance. Usefull when overriding
-                the TestDataDirClass to add custom functionality
-            test_data_dir_class:
-                Class extending datadirtest.TestDataDir class with additional functionality. It will be used for each
-                test in the suit.
+            data_dir (str): file_path to directory that holds functional test directories. By default this is
+            ./functional
+            component_script (str): file_path to the component script. By default this is ../src/component.py
+            context_parameters (dict): dictionary with optional parameters that will be passed to each Test instance.
+            Usefull when overriding the TestDataDirClass to add custom functionality
+            test_data_dir_class (Type[TestDataDir]): Class extending datadirtest.TestDataDir class with additional
+            functionality. It will be used for each test in the suit.
 
 
         """

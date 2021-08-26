@@ -3,7 +3,7 @@
 This library enables functional testing for Keboola components and processors by comparing expected and 
 real output directories.
 
-[**API Docs**](https://htmlpreview.github.io/?https://bitbucket.org/kds_consulting_team/datadirtest/raw/44e514000f232fb6e1f28c35c0eac9c289476f6c/docs/html/datadirtest/datadirtest.html)
+[**API Docs**](https://htmlpreview.github.io/?https://bitbucket.org/kds_consulting_team/datadirtest/raw/master/docs/html/datadirtest/datadirtest.html)
 
 ### Introduction ###
 By defining a direc
