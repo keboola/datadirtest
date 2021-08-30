@@ -6,6 +6,7 @@ import shutil
 import sys
 import tempfile
 import unittest
+from difflib import Differ
 from importlib.abc import Loader
 from os import path
 from pathlib import Path
@@ -177,8 +178,19 @@ class TestDataDir(unittest.TestCase):
         file_paths = self.get_all_files_in_dir(files_expected_path)
         common_files = [file.replace(files_expected_path, "").strip("/").strip('\\') for file in file_paths]
         equal, mismatch, errors = filecmp.cmpfiles(files_expected_path, files_real_path, common_files, shallow=False)
+        if mismatch:
+            self._produce_file_diff(files_expected_path, files_real_path, mismatch)
         self.assertEqual(mismatch, [], f" Files : {mismatch} do not match")
         self.assertEqual(errors, [], f" Files : {errors} could not be compared")
+
+    def _produce_file_diff(self, files_expected_path, files_real_path, mismatch):
+        for f in mismatch:
+            print(f'Diff of {f}, expected vs real: ')
+            with open(os.path.join(files_expected_path, f)) as file_1, open(os.path.join(files_real_path, f)) as file_2:
+                differ = Differ()
+
+                for line in differ.compare(file_1.readlines(), file_2.readlines()):
+                    print(line)
 
 
 class DataDirTester:
