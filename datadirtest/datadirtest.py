@@ -208,7 +208,7 @@ class TestDataDir(unittest.TestCase):
             self.assertEqual(mismatch, [], msg=f'Following files do not match: \n {differences}')
         self.assertEqual(errors, [], f" Files : {errors} could not be compared")
 
-    def _print_file_differences(self, mismatched_files: list[str], expected_folder: str, real_folder: str):
+    def _print_file_differences(self, mismatched_files: List[str], expected_folder: str, real_folder: str):
         differences = ''
         for mis_file in mismatched_files:
             source_path = os.path.join(real_folder, mis_file)
