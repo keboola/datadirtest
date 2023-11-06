@@ -22,15 +22,18 @@ def captured_output():
 class TestComponent(unittest.TestCase):
 
     def setUp(self) -> None:
-        self.mock_datadirtest = TestDataDir('', '')
         self.test_datadirs = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                           'resources')
 
         self.test_datadirs_passing = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                                   'resources_passing')
+        self.test_datadirs_passing_env = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                                      'resources_passing_env_variables')
 
         self.test_datadirs_chained = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                                   'chained_tests')
+
+        self.mock_datadirtest = TestDataDir(os.path.join(self.test_datadirs_passing, 'passing_scripts'), '')
 
     def test_nested_different_content_fails(self):
         expected = os.path.join(self.test_datadirs, 'foldered_diff', 'expected')
@@ -46,6 +49,16 @@ class TestComponent(unittest.TestCase):
 
     def test_passing_with_scripts(self):
         tester = DataDirTester(self.test_datadirs_passing, os.path.join(self.test_datadirs_passing, 'script.py'))
+        with captured_output() as (out, err):
+            tester.run()
+        output = out.getvalue().strip()
+        self.assertEqual(output, 'setUp\nfile created\ntearDown')
+
+    def test_passing_with_env(self):
+        tester = DataDirTester(self.test_datadirs_passing_env,
+                               os.path.join(self.test_datadirs_passing_env, 'script.py'))
+        os.environ['bool2_col'] = 'bool_bool2'
+        os.environ['time_col'] = 'time_submitted'
         with captured_output() as (out, err):
             tester.run()
         output = out.getvalue().strip()

@@ -90,6 +90,24 @@ Then run your tests as usual e.g. via `python -m unittest discover` from the roo
 python -m datadirtest /path/to/project/tests/functional [optionally path/to/project/script.py]
 ```
 
+### Environment Variables
+
+It is possible to use environment variables placeholders inside the test `config.json`. 
+To do so use following syntax: `{{env.VARIABLE_NAME}}`. The environment variable `VARIABLE_NAME` will be expected and it's value will replace the placeholder. 
+If the EVN variable is not present, the test will fail.
+
+**Example**
+```json
+{
+  "parameters": {
+    "#api_key": "{{env.API_KEY}}",
+    "since": "1 day ago"
+  }
+}
+```
+
+In the following example the `#api_key` value will be replaced by `API_KEY` ENV variable value.
+
 
 ## Advanced usage
 

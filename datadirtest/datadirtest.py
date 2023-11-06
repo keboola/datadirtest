@@ -4,6 +4,7 @@ import importlib.util
 import json
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
@@ -34,13 +35,31 @@ class TestDataDir(unittest.TestCase):
         super(TestDataDir, self).__init__(methodName=method_name)
         self.component_script = component_script
         self.orig_dir = data_dir
+        self.data_dir = self._create_temporary_copy()
+        self._apply_env_variables()
+
         self.expected_path = path.join(data_dir, 'expected')
         self.context_parameters = context_parameters
         self._input_state_override = last_state_override
         self.result_state = {}
 
+    def _apply_env_variables(self):
+        # convert to string minified
+        pattern = r'({{env.(.+)}})'
+        cfg_string = open(self.source_config_path, 'r').read()
+        matches = re.findall(pattern, cfg_string)
+        new_string = cfg_string
+        for m in matches:
+            replace_value = os.getenv(m[1])
+            if not replace_value:
+                raise ValueError(f"Environment variable {m[1]}  defined in config is missing")
+            new_string = new_string.replace(m[0], replace_value)
+
+        # replace with new version
+        new_cfg = json.loads(new_string)
+        json.dump(new_cfg, open(self.source_config_path, 'w+'))
+
     def setUp(self):
-        self.data_dir = self._create_temporary_copy()
         self._override_input_state(self._input_state_override)
         self._run_set_up_script()
 
@@ -226,6 +245,10 @@ class TestDataDir(unittest.TestCase):
     @property
     def source_data_dir(self) -> str:
         return path.join(self.data_dir, "source", "data")
+
+    @property
+    def source_config_path(self) -> str:
+        return path.join(self.source_data_dir, 'config.json')
 
 
 class TestChainedDatadirTest(unittest.TestCase):
