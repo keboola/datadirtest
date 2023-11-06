@@ -57,7 +57,8 @@ class TestDataDir(unittest.TestCase):
 
         # replace with new version
         new_cfg = json.loads(new_string)
-        json.dump(new_cfg, open(self.source_config_path, 'w+'))
+        with open(self.source_config_path, 'w+') as outp:
+            json.dump(new_cfg, outp)
 
     def setUp(self):
         self._override_input_state(self._input_state_override)
