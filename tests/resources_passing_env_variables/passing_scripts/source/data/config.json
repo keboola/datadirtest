@@ -1,0 +1,21 @@
+{
+  "parameters": {
+      "delimiter" : "_"
+      ,"column_types":[
+          {"column":"{{env.bool2_col}}",
+           "type":"number"},
+           {"column":"bool_bool1",
+            "type":"bool"},
+          {"column":"id",
+           "type":"string"},
+          {"column":"field.id",
+           "type":"string"},
+          {"column":"ansconcat",
+           "type":"string"},
+          {"column":"{{env.time_col}}",
+           "type":"string"}
+      ],
+    "extract_to_folder" : true
+  },
+  "image_parameters": {}
+}
