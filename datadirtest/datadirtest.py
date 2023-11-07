@@ -64,16 +64,24 @@ class TestDataDir(unittest.TestCase):
         self._override_input_state(self._input_state_override)
         self._run_set_up_script()
 
+    def run_post_run_script(self):
+        post_script = os.path.join(self.orig_dir, 'source', 'post_run.py')
+        self._run_script(post_script)
+
     def _run_set_up_script(self):
         start_script_path = os.path.join(self.orig_dir, 'source', 'set_up.py')
+        self._run_script(start_script_path)
+
+    def _run_script(self, custom_script_path: str):
+        start_script_path = custom_script_path
         if os.path.exists(start_script_path):
             script = self._load_module_at_path(start_script_path)
             try:
                 script.run(self)
             except AttributeError:
                 raise NotImplementedError(
-                    "The set_up.py file was found but it does not implement the run(context) method. Please add the "
-                    "implementation")
+                    f"The {script_path} file was found but it does not implement the run(context) method. "
+                    f"Please add the implementation")
 
     def tearDown(self) -> None:
         self._collect_result_state()
@@ -97,14 +105,7 @@ class TestDataDir(unittest.TestCase):
 
     def _run_tear_down_script(self):
         end_script_path = os.path.join(self.orig_dir, 'source', 'tear_down.py')
-        if os.path.exists(end_script_path):
-            script = self._load_module_at_path(end_script_path)
-            try:
-                script.run(self)
-            except AttributeError:
-                raise NotImplementedError(
-                    "The tear_down.py file was found but it does not implement the run(context) method. Please add the "
-                    "implementation")
+        self._run_script(end_script_path)
 
     def _override_input_state(self, input_state: dict):
         """
@@ -149,6 +150,7 @@ class TestDataDir(unittest.TestCase):
         """
         logging.info(f"Running {self.component_script} with configuration from {self.data_dir}")
         self.run_component()
+        self.run_post_run_script()
 
         files_expected_path, tables_expected_path = self.get_data_paths(self.data_dir, 'expected')
         files_real_path, tables_real_path = self.get_data_paths(self.data_dir, 'source')

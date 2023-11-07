@@ -52,7 +52,7 @@ class TestComponent(unittest.TestCase):
         with captured_output() as (out, err):
             tester.run()
         output = out.getvalue().strip()
-        self.assertEqual(output, 'setUp\nfile created\ntearDown')
+        self.assertEqual(output, 'setUp\nfile created\npostRun\ntearDown')
 
     def test_passing_with_env(self):
         tester = DataDirTester(self.test_datadirs_passing_env,
