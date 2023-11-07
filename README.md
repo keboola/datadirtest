@@ -156,7 +156,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-### Using set_up and tear_down scripts
+### Using set_up, post_run and tear_down scripts
 
 You may specify custom scripts that are executed before or after the test execution. Place them into the `source` folder:
 
@@ -165,6 +165,7 @@ You may specify custom scripts that are executed before or after the test execut
       │ └─data
       │   ├─ config.json
       │   ├─ set_up.py
+      │   ├─ post_run.py
       │   ├─ tear_down.py
       │   └─in
       │     ├─files
@@ -173,11 +174,15 @@ You may specify custom scripts that are executed before or after the test execut
 
 **Usage**
 
-Each script (`set_up.py` and `tear_down.py`) **must implement** a `run(context: TestDataDir)` method. The `context` parameter then includes the parent
+Each script (`set_up.py`, `post_run.py` and `tear_down.py`) **must implement** a `run(context: TestDataDir)` method. The `context` parameter then includes the parent
 TestDataDir instance with access to `context_parameters` if needed. Both script files are optional. If file is found but there is no `run()` method defined,
 the execution fails.
 
-The `set_up.py` may contain following code:
+The `set_up.py` and `tear_down.py` are executed before and after the DataDirTest itself. The `post_run.py` is useful to run a script right after the component script, before the resulting data is modified. See the diagram below:
+
+![datadir diagram](docs/datadir_test.png)
+
+For instance, the `set_up.py` may contain following code:
 
 ```python
 from datadirtest import TestDataDir
