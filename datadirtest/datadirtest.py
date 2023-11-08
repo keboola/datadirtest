@@ -117,7 +117,9 @@ class TestDataDir(unittest.TestCase):
 
         """
         input_state = input_state or {}
-        with open(os.path.join(self.data_dir, 'source', 'data', 'in', 'state.json'), 'w+') as inp:
+        state_path = os.path.join(self.data_dir, 'source', 'data', 'in', 'state.json')
+        Path(state_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(state_path, 'w+') as inp:
             json.dump(input_state, inp)
 
     def id(self):
