@@ -1,12 +1,14 @@
+import difflib
 import filecmp
 import importlib.util
+import json
 import logging
 import os
+import re
 import shutil
 import sys
 import tempfile
 import unittest
-from difflib import Differ
 from importlib.abc import Loader
 from os import path
 from pathlib import Path
@@ -21,38 +23,77 @@ class TestDataDir(unittest.TestCase):
     """
 
     def __init__(self, data_dir: str, component_script: str, method_name: str = 'compare_source_and_expected',
-                 context_parameters: Optional[dict] = None):
+                 context_parameters: Optional[dict] = None, last_state_override: dict = None):
         """
         Args:
             method_name (str): name of the testing method to be run
             data_dir (str): file_path to directory which holds the component config, source, and expected directories
             component_script (str): file_path to component script that should be run
             context_parameters (dict): Optional context parameters injected from the DirTester runner.
+            last_state_override (dict): Optional component state override
         """
         super(TestDataDir, self).__init__(methodName=method_name)
         self.component_script = component_script
         self.orig_dir = data_dir
+        self.data_dir = self._create_temporary_copy()
+        self._apply_env_variables()
+
         self.expected_path = path.join(data_dir, 'expected')
         self.context_parameters = context_parameters
+        self._input_state_override = last_state_override
+        self.result_state = {}
+
+    def _apply_env_variables(self):
+        # convert to string minified
+        pattern = r'({{env.(.+)}})'
+        cfg_string = open(self.source_config_path, 'r').read()
+        matches = re.findall(pattern, cfg_string)
+        new_string = cfg_string
+        for m in matches:
+            replace_value = os.getenv(m[1])
+            if not replace_value:
+                raise ValueError(f"Environment variable {m[1]}  defined in config is missing")
+            new_string = new_string.replace(m[0], replace_value)
+
+        # replace with new version
+        new_cfg = json.loads(new_string)
+        with open(self.source_config_path, 'w+') as outp:
+            json.dump(new_cfg, outp)
 
     def setUp(self):
-        self.data_dir = self._create_temporary_copy()
+        self._override_input_state(self._input_state_override)
         self._run_set_up_script()
+
+    def run_post_run_script(self):
+        post_script = os.path.join(self.orig_dir, 'source', 'post_run.py')
+        self._run_script(post_script)
 
     def _run_set_up_script(self):
         start_script_path = os.path.join(self.orig_dir, 'source', 'set_up.py')
+        self._run_script(start_script_path)
+
+    def _run_script(self, custom_script_path: str):
+        start_script_path = custom_script_path
         if os.path.exists(start_script_path):
             script = self._load_module_at_path(start_script_path)
             try:
                 script.run(self)
             except AttributeError:
                 raise NotImplementedError(
-                    "The set_up.py file was found but it does not implement the run(context) method. Please add the "
-                    "implementation")
+                    f"The {script_path} file was found but it does not implement the run(context) method. "
+                    f"Please add the implementation")
 
     def tearDown(self) -> None:
+        self._collect_result_state()
         self._run_tear_down_script()
         shutil.rmtree(self.data_dir)
+
+    def _collect_result_state(self):
+        result_state = {}
+        state_file = os.path.join(self.source_data_dir, 'out', 'state.json')
+        if os.path.exists(state_file):
+            result_state = json.load(open(state_file, 'r'))
+        self.result_state = result_state
 
     @staticmethod
     def _load_module_at_path(run_script_path):
@@ -64,14 +105,22 @@ class TestDataDir(unittest.TestCase):
 
     def _run_tear_down_script(self):
         end_script_path = os.path.join(self.orig_dir, 'source', 'tear_down.py')
-        if os.path.exists(end_script_path):
-            script = self._load_module_at_path(end_script_path)
-            try:
-                script.run(self)
-            except AttributeError:
-                raise NotImplementedError(
-                    "The tear_down.py file was found but it does not implement the run(context) method. Please add the "
-                    "implementation")
+        self._run_script(end_script_path)
+
+    def _override_input_state(self, input_state: dict):
+        """
+        Overrides the input state with provided one. Run in setUp
+        Args:
+            input_state:
+
+        Returns:
+
+        """
+        input_state = input_state or {}
+        state_path = os.path.join(self.data_dir, 'source', 'data', 'in', 'state.json')
+        Path(state_path).parent.mkdir(parents=True, exist_ok=True)
+        with open(state_path, 'w+') as inp:
+            json.dump(input_state, inp)
 
     def id(self):
         return path.basename(self.orig_dir)
@@ -92,8 +141,7 @@ class TestDataDir(unittest.TestCase):
         """
         Runs a component script with a specified configuration
         """
-        source_dir = path.join(self.data_dir, "source", "data")
-        os.environ["KBC_DATADIR"] = source_dir
+        os.environ["KBC_DATADIR"] = self.source_data_dir
         run_path(self.component_script, run_name='__main__')
 
     def compare_source_and_expected(self):
@@ -104,6 +152,7 @@ class TestDataDir(unittest.TestCase):
         """
         logging.info(f"Running {self.component_script} with configuration from {self.data_dir}")
         self.run_component()
+        self.run_post_run_script()
 
         files_expected_path, tables_expected_path = self.get_data_paths(self.data_dir, 'expected')
         files_real_path, tables_real_path = self.get_data_paths(self.data_dir, 'source')
@@ -179,18 +228,135 @@ class TestDataDir(unittest.TestCase):
         common_files = [file.replace(files_expected_path, "").strip("/").strip('\\') for file in file_paths]
         equal, mismatch, errors = filecmp.cmpfiles(files_expected_path, files_real_path, common_files, shallow=False)
         if mismatch:
-            self._produce_file_diff(files_expected_path, files_real_path, mismatch)
-        self.assertEqual(mismatch, [], f" Files : {mismatch} do not match")
+            differences = self._print_file_differences(mismatch, files_expected_path, files_real_path)
+            self.assertEqual(mismatch, [], msg=f'Following files do not match: \n {differences}')
         self.assertEqual(errors, [], f" Files : {errors} could not be compared")
 
-    def _produce_file_diff(self, files_expected_path, files_real_path, mismatch):
-        for f in mismatch:
-            print(f'Diff of {f}, expected vs real: ')
-            with open(os.path.join(files_expected_path, f)) as file_1, open(os.path.join(files_real_path, f)) as file_2:
-                differ = Differ()
+    def _print_file_differences(self, mismatched_files: List[str], expected_folder: str, real_folder: str):
+        differences = ''
+        for mis_file in mismatched_files:
+            source_path = os.path.join(real_folder, mis_file)
+            expected_path = os.path.join(expected_folder, mis_file)
 
-                for line in differ.compare(file_1.readlines(), file_2.readlines()):
-                    print(line)
+            with open(source_path, "r") as f1, open(expected_path, "r") as f2:
+                diff = difflib.unified_diff(f1.readlines(),
+                                            f2.readlines(), fromfile=source_path, tofile=expected_path)
+
+                for line in diff:
+                    differences += line + '\n'
+            differences += '\n' + '==' * 30
+        return differences
+
+    @property
+    def source_data_dir(self) -> str:
+        return path.join(self.data_dir, "source", "data")
+
+    @property
+    def source_config_path(self) -> str:
+        return path.join(self.source_data_dir, 'config.json')
+
+
+class TestChainedDatadirTest(unittest.TestCase):
+    """
+    A test class that runs a chain of Datadir Tests that pass each other a statefile.
+    """
+
+    def __init__(self, data_dir: str, component_script: str, method_name: str = 'compare_source_and_expected',
+                 context_parameters: Optional[dict] = None,
+                 test_data_dir_class: Type[TestDataDir] = TestDataDir):
+        """
+        Args:
+            method_name (str): name of the testing method to be run
+            data_dir (str): file_path to directory which holds the chained tests
+            component_script (str): file_path to component script that should be run
+            context_parameters (dict): Optional context parameters injected from the DirTester runner.
+        """
+        super(TestChainedDatadirTest, self).__init__()
+
+        self._component_script = component_script
+        self._context_parameters = context_parameters
+        self.__test_class = test_data_dir_class
+        self._chained_tests_directory = data_dir
+        self._chained_tests_method = method_name
+
+    def runTest(self):
+        """
+        This runs the chain of tests
+        Returns:
+
+        """
+        last_state = None
+        test_runner = unittest.TextTestRunner(verbosity=3, stream=sys.stdout)
+        for test_dir in self._get_testing_dirs(self._chained_tests_directory):
+            test = self._build_test(test_dir, last_state)
+            result = test_runner.run(test)
+            if not result.wasSuccessful():
+                self.fail(f'Chained test {self.shortDescription()}-{test.shortDescription()} '
+                          f'failed:\n {result.errors + result.failures}')
+            last_state = test.result_state
+
+    def setUp(self):
+        self._run_set_up_script()
+
+    def _run_set_up_script(self):
+        start_script_path = os.path.join(self._chained_tests_directory, 'set_up.py')
+        if os.path.exists(start_script_path):
+            script = self._load_module_at_path(start_script_path)
+            try:
+                script.run(self)
+            except AttributeError:
+                raise NotImplementedError(
+                    "The set_up.py file was found but it does not implement the run(context) method. Please add the "
+                    "implementation")
+
+    def tearDown(self) -> None:
+        self._run_tear_down_script()
+
+    def _build_test(self, testing_dir, state_override: dict = None) -> TestDataDir:
+        return self.__test_class(method_name=self._chained_tests_method,
+                                 data_dir=testing_dir,
+                                 component_script=self._component_script,
+                                 context_parameters=self._context_parameters,
+                                 last_state_override=state_override)
+
+    @staticmethod
+    def _get_testing_dirs(data_dir: str) -> List:
+        """
+        Gets directories within a directory that do not start with an underscore, sorted alphabetically.
+
+        Args:
+            data_dir: directory which holds directories
+
+        Returns:
+            list of paths inside directory
+        """
+        return sorted([os.path.join(data_dir, o) for o in os.listdir(data_dir) if
+                       os.path.isdir(os.path.join(data_dir, o)) and not o.startswith('_')])
+
+    @staticmethod
+    def _load_module_at_path(run_script_path):
+        spec = importlib.util.spec_from_file_location("custom_scripts", run_script_path)
+        script = importlib.util.module_from_spec(spec)
+        assert isinstance(spec.loader, Loader)
+        spec.loader.exec_module(script)
+        return script
+
+    def _run_tear_down_script(self):
+        end_script_path = os.path.join(self._chained_tests_directory, 'tear_down.py')
+        if os.path.exists(end_script_path):
+            script = self._load_module_at_path(end_script_path)
+            try:
+                script.run(self)
+            except AttributeError:
+                raise NotImplementedError(
+                    "The tear_down.py file was found but it does not implement the run(context) method. Please add the "
+                    "implementation")
+
+    def id(self):
+        return path.basename(self._chained_tests_directory)
+
+    def shortDescription(self) -> Optional[str]:
+        return path.basename(self._chained_tests_directory)
 
 
 class DataDirTester:
@@ -238,7 +404,7 @@ class DataDirTester:
         test_runner = unittest.TextTestRunner(verbosity=3)
         result = test_runner.run(dir_test_suite)
         if not result.wasSuccessful():
-            raise AssertionError(f'Functional test suite failed. {result.errors}')
+            raise AssertionError(f'Functional test suite failed. {result.errors + result.failures}')
 
     @staticmethod
     def _get_testing_dirs(data_dir: str) -> List:
@@ -267,11 +433,31 @@ class DataDirTester:
         """
         suite = unittest.TestSuite()
         for testing_dir in testing_dirs:
-            suite.addTest(self.__test_class(method_name='compare_source_and_expected',
-                                            data_dir=testing_dir,
-                                            component_script=self._component_script,
-                                            context_parameters=self._context_parameters))
+            if self._is_chained_test(testing_dir):
+                test = TestChainedDatadirTest(data_dir=testing_dir,
+                                              component_script=self._component_script,
+                                              context_parameters=self._context_parameters,
+                                              test_data_dir_class=self.__test_class)
+            else:
+
+                test = self.__test_class(method_name='compare_source_and_expected',
+                                         data_dir=testing_dir,
+                                         component_script=self._component_script,
+                                         context_parameters=self._context_parameters)
+
+            suite.addTest(test)
         return suite
+
+    def _is_chained_test(self, directory_path: str):
+        directories = [o for o in os.listdir(directory_path) if
+                       os.path.isdir(os.path.join(directory_path, o)) and not o.startswith('_')]
+        if {'source', 'expected'}.issubset(directories):
+            return False
+        elif len(directories) > 0:
+            return True
+        else:
+            raise ValueError(f'The functional folder {directory_path} is invalid. It needs to either contain '
+                             f'"source" and "expected" folders or contain directories of chained tests')
 
 
 if __name__ == "__main__":

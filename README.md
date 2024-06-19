@@ -90,7 +90,26 @@ Then run your tests as usual e.g. via `python -m unittest discover` from the roo
 python -m datadirtest /path/to/project/tests/functional [optionally path/to/project/script.py]
 ```
 
-### Advanced usage ###
+### Environment Variables
+
+It is possible to use environment variables placeholders inside the test `config.json`. 
+To do so use following syntax: `{{env.VARIABLE_NAME}}`. The environment variable `VARIABLE_NAME` will be expected and it's value will replace the placeholder. 
+If the EVN variable is not present, the test will fail.
+
+**Example**
+```json
+{
+  "parameters": {
+    "#api_key": "{{env.API_KEY}}",
+    "since": "1 day ago"
+  }
+}
+```
+
+In the following example the `#api_key` value will be replaced by `API_KEY` ENV variable value.
+
+
+## Advanced usage
 
 In some cases you want to modify the DataDirTest behaviour for instance to prepare the environment for each test, 
 or execute some script prior the actual test run.
@@ -137,7 +156,7 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-#### Using set_up and tear_down scripts
+### Using set_up, post_run and tear_down scripts
 
 You may specify custom scripts that are executed before or after the test execution. Place them into the `source` folder:
 
@@ -146,6 +165,7 @@ You may specify custom scripts that are executed before or after the test execut
       │ └─data
       │   ├─ config.json
       │   ├─ set_up.py
+      │   ├─ post_run.py
       │   ├─ tear_down.py
       │   └─in
       │     ├─files
@@ -154,11 +174,15 @@ You may specify custom scripts that are executed before or after the test execut
 
 **Usage**
 
-Each script (`set_up.py` and `tear_down.py`) **must implement** a `run(context: TestDataDir)` method. The `context` parameter then includes the parent
+Each script (`set_up.py`, `post_run.py` and `tear_down.py`) **must implement** a `run(context: TestDataDir)` method. The `context` parameter then includes the parent
 TestDataDir instance with access to `context_parameters` if needed. Both script files are optional. If file is found but there is no `run()` method defined,
 the execution fails.
 
-The `set_up.py` may contain following code:
+The `set_up.py` and `tear_down.py` are executed before and after the DataDirTest itself. The `post_run.py` is useful to run a script right after the component script, before the resulting data is modified. See the diagram below:
+
+![datadir diagram](docs/datadir_test.png)
+
+For instance, the `set_up.py` may contain following code:
 
 ```python
 from datadirtest import TestDataDir
@@ -173,3 +197,48 @@ def run(context: TestDataDir):
 ```
 
 It will run the above script specific for the current test (folder) before the actual test execution
+
+
+
+### Chained tests
+
+Chained tests are useful in scenarios when it is necessary to run several tests in a sequence and pass the component state between them.
+
+
+You can chain tests by including them in additional folder that contains normal tests. 
+The folder can also contain the `set_up` and `tear_down` scripts that will be executed before and after the group of chained tests. 
+They also share all the other parameters like context.
+
+e.g.: 
+
+```
+/path/to/project/tests
+└─functional
+    ├─my-chained-test
+    │ ├─ set_up.py
+    │ ├─ tear_down.py
+    │ ├─01-first-test
+    │ │  ├─expected
+    │ │  │ └─data
+    │ │  ├─source
+    │ │  │ └─data  
+    │ └─02-second-test
+    │    ├─expected
+    │    └─source 
+    └─another-normal-test
+```
+
+#### The chain test execution
+
+The tests are executed in **alphabetical order** so it's recommended to prefix your tests with numbers, e.g. `01_`,`02_`, ..
+
+The execution flow of the example `my-chained-test` looks like this:
+
+1. run root `set_up.py`
+2. run `01-first-test`
+3. pass `01-first-test` result `out/state.json` to `02-second-test/source/data/in/state.json`
+   - If `02-second-test/source/data/in/state.json` alredy exists it is overridden!
+4. run `02-second-test`
+5. run `tear_down_py`
+
+Note that the tests in the `functional` folder are executed in random order.
