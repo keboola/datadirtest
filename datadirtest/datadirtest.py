@@ -129,11 +129,12 @@ class TestDataDir(unittest.TestCase):
         return path.basename(self.orig_dir)
 
     def _create_temporary_copy(self):
-        temp_dir = tempfile.gettempdir()
-        dst_path = path.join(temp_dir, 'test_data')
-        if path.exists(dst_path):
+        temp_dir = tempfile.mkdtemp(prefix=Path(self.orig_dir).name, dir='/tmp')
+        dst_path = os.path.join(temp_dir, 'test_data')
+        if os.path.exists(dst_path):
             shutil.rmtree(dst_path)
-
+        if not os.path.exists(self.orig_dir):
+            raise ValueError(f"{self.orig_dir} does not exist. ")
         shutil.copytree(self.orig_dir, dst_path)
         return dst_path
 

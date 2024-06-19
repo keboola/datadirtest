@@ -1,0 +1,21 @@
+{
+  "parameters": {
+      "delimiter" : "_"
+      ,"column_types":[
+          {"column":"bool_bool2",
+           "type":"number"},
+           {"column":"bool_bool1",
+            "type":"bool"},
+          {"column":"id",
+           "type":"string"},
+          {"column":"field.id",
+           "type":"string"},
+          {"column":"ansconcat",
+           "type":"string"},
+          {"column":"time_submitted",
+           "type":"string"}
+      ],
+    "extract_to_folder" : true
+  },
+  "image_parameters": {}
+}
