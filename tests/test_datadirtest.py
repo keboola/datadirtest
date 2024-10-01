@@ -1,5 +1,6 @@
 import os
 import sys
+import textwrap
 import unittest
 from contextlib import contextmanager
 from io import StringIO
@@ -32,6 +33,9 @@ class TestComponent(unittest.TestCase):
 
         self.test_datadirs_chained = os.path.join(os.path.dirname(os.path.realpath(__file__)),
                                                   'chained_tests')
+
+        self.test_datadirs_chained_artifacts = os.path.join(os.path.dirname(os.path.realpath(__file__)),
+                                                  'chained_tests_artifacts')
 
         self.mock_datadirtest = TestDataDir(os.path.join(self.test_datadirs_passing, 'passing_scripts'), '')
 
@@ -90,6 +94,31 @@ class TestComponent(unittest.TestCase):
         output = out.getvalue().strip()
         self.assertEqual(output, injected_value)
 
+    def test_chained_tests_with_artifacts(self):
+
+        tester = DataDirTester(self.test_datadirs_chained_artifacts,
+                                     os.path.join(self.test_datadirs_chained_artifacts, 'script.py'))
+
+        with captured_output() as (out, err):
+            tester.run()
+
+        output = out.getvalue().strip()
+        self.assertIn(textwrap.dedent("""
+            Found artefact in the previous run: artefact.txt
+            Found artefact in the shared artifacts: artefact-shared.txt"""), output)
+
+    def test_chained_tests_with_artifacts_custom(self):
+        tester = DataDirTester(self.test_datadirs_chained_artifacts,
+                               os.path.join(self.test_datadirs_chained_artifacts, 'script.py'),
+                               artifact_current_destination='custom')
+
+        with captured_output() as (out, err):
+            tester.run()
+
+        output = out.getvalue().strip()
+        self.assertIn(textwrap.dedent("""
+            Found artefact in the shared artifacts: artefact-shared.txt
+            Found custom artifact: artefact.txt"""), output)
 
 if __name__ == "__main__":
     # import sys;sys.argv = ['', 'Test.testName']
