@@ -13,7 +13,7 @@ from importlib.abc import Loader
 from os import path
 from pathlib import Path
 from runpy import run_path
-from typing import List, Optional, Type
+from typing import List, Optional, Type, Literal
 
 
 class TestDataDir(unittest.TestCase):
@@ -23,7 +23,8 @@ class TestDataDir(unittest.TestCase):
     """
 
     def __init__(self, data_dir: str, component_script: str, method_name: str = 'compare_source_and_expected',
-                 context_parameters: Optional[dict] = None, last_state_override: dict = None):
+                 context_parameters: Optional[dict] = None, last_state_override: dict = None,
+                 artefacts_path: str = None, artifact_current_destination: Literal['custom', 'runs'] = 'runs'):
         """
         Args:
             method_name (str): name of the testing method to be run
@@ -31,6 +32,8 @@ class TestDataDir(unittest.TestCase):
             component_script (str): file_path to component script that should be run
             context_parameters (dict): Optional context parameters injected from the DirTester runner.
             last_state_override (dict): Optional component state override
+            artefacts_path (str): Optional path to the artifacts that should be copied to the component data folder
+            artifact_current_destination (str): Optional artifact's destination. Accepts 'custom' or 'runs' Default runs
         """
         super(TestDataDir, self).__init__(methodName=method_name)
         self.component_script = component_script
@@ -42,6 +45,9 @@ class TestDataDir(unittest.TestCase):
         self.context_parameters = context_parameters
         self._input_state_override = last_state_override
         self.result_state = {}
+        self._last_artifacts_override = artefacts_path
+        self._artifact_current_destination = artifact_current_destination
+        self.out_artifacts_path = None
 
     def _apply_env_variables(self):
         # convert to string minified
@@ -62,6 +68,7 @@ class TestDataDir(unittest.TestCase):
 
     def setUp(self):
         self._override_input_state(self._input_state_override)
+        self._copy_in_artifacts()
         self._run_set_up_script()
 
     def run_post_run_script(self):
@@ -85,6 +92,7 @@ class TestDataDir(unittest.TestCase):
 
     def tearDown(self) -> None:
         self._collect_result_state()
+        self._move_artifacts_to_tmp()
         self._run_tear_down_script()
         shutil.rmtree(self.data_dir)
 
@@ -94,6 +102,14 @@ class TestDataDir(unittest.TestCase):
         if os.path.exists(state_file):
             result_state = json.load(open(state_file, 'r'))
         self.result_state = result_state
+
+    def _move_artifacts_to_tmp(self) -> None:
+        out_artifacts_path = os.path.join(self.source_data_dir, 'artifacts', 'out')
+        if os.path.exists(out_artifacts_path) and os.listdir(out_artifacts_path):
+            temp_dir = tempfile.mktemp(prefix="artifacts_", dir='/tmp')
+            shutil.copytree(out_artifacts_path, temp_dir)
+            self.out_artifacts_path = temp_dir
+            pass
 
     @staticmethod
     def _load_module_at_path(run_script_path):
@@ -121,6 +137,27 @@ class TestDataDir(unittest.TestCase):
         Path(state_path).parent.mkdir(parents=True, exist_ok=True)
         with open(state_path, 'w+') as inp:
             json.dump(input_state, inp)
+
+    def _copy_in_artifacts(self):
+        """
+        Copies the artifacts from the provided temp path to the artifacts/in folder
+        Args:
+
+        Returns:
+
+        """
+        if in_artifacts_path := self._last_artifacts_override:
+            new_artifacts_path = os.path.join(self.data_dir, 'source', 'data', 'artifacts', 'in')
+            if os.path.exists(new_artifacts_path):
+                shutil.rmtree(new_artifacts_path)
+            shutil.copytree(in_artifacts_path, new_artifacts_path)
+
+            if self._artifact_current_destination == 'runs':
+                shutil.move(new_artifacts_path+"/current", new_artifacts_path+"/runs/jobId-1122334455")
+
+            elif self._artifact_current_destination == 'custom':
+                shutil.move(new_artifacts_path+"/current", new_artifacts_path+"/custom")
+            pass
 
     def id(self):
         return path.basename(self.orig_dir)
@@ -264,13 +301,15 @@ class TestChainedDatadirTest(unittest.TestCase):
 
     def __init__(self, data_dir: str, component_script: str, method_name: str = 'compare_source_and_expected',
                  context_parameters: Optional[dict] = None,
-                 test_data_dir_class: Type[TestDataDir] = TestDataDir):
+                 test_data_dir_class: Type[TestDataDir] = TestDataDir,
+                 artifact_current_destination: Literal['custom', 'runs'] = 'runs'):
         """
         Args:
             method_name (str): name of the testing method to be run
             data_dir (str): file_path to directory which holds the chained tests
             component_script (str): file_path to component script that should be run
             context_parameters (dict): Optional context parameters injected from the DirTester runner.
+            artifact_current_destination (str): Optional artifact's destination. Accepts 'custom' or 'runs' Default runs
         """
         super(TestChainedDatadirTest, self).__init__()
 
@@ -279,6 +318,7 @@ class TestChainedDatadirTest(unittest.TestCase):
         self.__test_class = test_data_dir_class
         self._chained_tests_directory = data_dir
         self._chained_tests_method = method_name
+        self._artifact_current_destination = artifact_current_destination
 
     def runTest(self):
         """
@@ -287,14 +327,16 @@ class TestChainedDatadirTest(unittest.TestCase):
 
         """
         last_state = None
+        last_artifacts_path = None
         test_runner = unittest.TextTestRunner(verbosity=3, stream=sys.stdout)
         for test_dir in self._get_testing_dirs(self._chained_tests_directory):
-            test = self._build_test(test_dir, last_state)
+            test = self._build_test(test_dir, last_state, last_artifacts_path)
             result = test_runner.run(test)
             if not result.wasSuccessful():
                 self.fail(f'Chained test {self.shortDescription()}-{test.shortDescription()} '
                           f'failed:\n {result.errors + result.failures}')
             last_state = test.result_state
+            last_artifacts_path = test.out_artifacts_path or None
 
     def setUp(self):
         self._run_set_up_script()
@@ -313,12 +355,14 @@ class TestChainedDatadirTest(unittest.TestCase):
     def tearDown(self) -> None:
         self._run_tear_down_script()
 
-    def _build_test(self, testing_dir, state_override: dict = None) -> TestDataDir:
+    def _build_test(self, testing_dir, state_override: dict = None, artefacts_path: str = None) -> TestDataDir:
         return self.__test_class(method_name=self._chained_tests_method,
                                  data_dir=testing_dir,
                                  component_script=self._component_script,
                                  context_parameters=self._context_parameters,
-                                 last_state_override=state_override)
+                                 last_state_override=state_override,
+                                 artefacts_path=artefacts_path,
+                                 artifact_current_destination=self._artifact_current_destination)
 
     @staticmethod
     def _get_testing_dirs(data_dir: str) -> List:
@@ -377,7 +421,8 @@ class DataDirTester:
     def __init__(self, data_dir: str = Path('./tests/functional').absolute().as_posix(),
                  component_script: str = Path('./src/component.py').absolute().as_posix(),
                  test_data_dir_class: Type[TestDataDir] = TestDataDir,
-                 context_parameters: Optional[dict] = None):
+                 context_parameters: Optional[dict] = None,
+                 artifact_current_destination: Literal['custom', 'runs'] = 'runs'):
         """
 
         Args:
@@ -395,6 +440,7 @@ class DataDirTester:
         self._component_script = component_script
         self._context_parameters = context_parameters or {}
         self.__test_class = test_data_dir_class
+        self._artifact_current_destination = artifact_current_destination
 
     def run(self):
         """
@@ -438,7 +484,8 @@ class DataDirTester:
                 test = TestChainedDatadirTest(data_dir=testing_dir,
                                               component_script=self._component_script,
                                               context_parameters=self._context_parameters,
-                                              test_data_dir_class=self.__test_class)
+                                              test_data_dir_class=self.__test_class,
+                                              artifact_current_destination=self._artifact_current_destination)
             else:
 
                 test = self.__test_class(method_name='compare_source_and_expected',
