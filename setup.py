@@ -5,6 +5,7 @@ setup(
     name='datadirtest',
     version='1.8.2',
     setup_requires=['setuptools_scm'],
+    install_requires=['pathlib'],
     url='https://bitbucket.org/kds_consulting_team/datadirtest',
     download_url='https://bitbucket.org/kds_consulting_team/datadirtest',
     packages=setuptools.find_packages(),
