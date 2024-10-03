@@ -26,8 +26,10 @@ if __name__ == "__main__":
         logging.error("No shared artefacts found")
 
     try:
-        for file in os.listdir(Path.joinpath(data_dir, 'artifacts/in/custom/')):
-            print(f"Found custom artifact: {file}")
+        with os.scandir(Path.joinpath(data_dir, 'artifacts/in/custom/')) as runs:
+            for run in runs:
+                for file in os.listdir(run):
+                    print(f"Found custom artifact: {file}")
 
     except FileNotFoundError:
         logging.error("No custom artefacts found")

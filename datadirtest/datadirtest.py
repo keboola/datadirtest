@@ -45,7 +45,7 @@ class TestDataDir(unittest.TestCase):
         self.context_parameters = context_parameters
         self._input_state_override = last_state_override
         self.result_state = {}
-        self._last_artifacts_override = artefacts_path
+        self._input_artifacts_override = artefacts_path
         self._artifact_current_destination = artifact_current_destination
         self.out_artifacts_path = None
 
@@ -68,7 +68,7 @@ class TestDataDir(unittest.TestCase):
 
     def setUp(self):
         self._override_input_state(self._input_state_override)
-        self._copy_in_artifacts()
+        self._override_input_artifacts()
         self._run_set_up_script()
 
     def run_post_run_script(self):
@@ -106,7 +106,7 @@ class TestDataDir(unittest.TestCase):
     def _move_artifacts_to_tmp(self) -> None:
         out_artifacts_path = os.path.join(self.source_data_dir, 'artifacts', 'out')
         if os.path.exists(out_artifacts_path) and os.listdir(out_artifacts_path):
-            temp_dir = tempfile.mktemp(prefix="artifacts_", dir='/tmp')
+            temp_dir = tempfile.mktemp(prefix="artifacts_")
             shutil.copytree(out_artifacts_path, temp_dir)
             self.out_artifacts_path = temp_dir
             pass
@@ -138,7 +138,7 @@ class TestDataDir(unittest.TestCase):
         with open(state_path, 'w+') as inp:
             json.dump(input_state, inp)
 
-    def _copy_in_artifacts(self):
+    def _override_input_artifacts(self):
         """
         Copies the artifacts from the provided temp path to the artifacts/in folder
         Args:
@@ -146,7 +146,7 @@ class TestDataDir(unittest.TestCase):
         Returns:
 
         """
-        if in_artifacts_path := self._last_artifacts_override:
+        if in_artifacts_path := self._input_artifacts_override:
             new_artifacts_path = os.path.join(self.data_dir, 'source', 'data', 'artifacts', 'in')
             if os.path.exists(new_artifacts_path):
                 shutil.rmtree(new_artifacts_path)
@@ -156,7 +156,7 @@ class TestDataDir(unittest.TestCase):
                 shutil.move(new_artifacts_path+"/current", new_artifacts_path+"/runs/jobId-1122334455")
 
             elif self._artifact_current_destination == 'custom':
-                shutil.move(new_artifacts_path+"/current", new_artifacts_path+"/custom")
+                shutil.move(new_artifacts_path+"/current", new_artifacts_path+"/custom/jobId-1122334455")
             pass
 
     def id(self):
