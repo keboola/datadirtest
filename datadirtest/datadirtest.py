@@ -109,7 +109,6 @@ class TestDataDir(unittest.TestCase):
             temp_dir = tempfile.mktemp(prefix="artifacts_")
             shutil.copytree(out_artifacts_path, temp_dir)
             self.out_artifacts_path = temp_dir
-            pass
 
     @staticmethod
     def _load_module_at_path(run_script_path):
@@ -157,7 +156,6 @@ class TestDataDir(unittest.TestCase):
 
             elif self._artifact_current_destination == 'custom':
                 shutil.move(new_artifacts_path+"/current", new_artifacts_path+"/custom/jobId-1122334455")
-            pass
 
     def id(self):
         return path.basename(self.orig_dir)
@@ -266,24 +264,43 @@ class TestDataDir(unittest.TestCase):
         common_files = [file.replace(files_expected_path, "").strip("/").strip('\\') for file in file_paths]
         equal, mismatch, errors = filecmp.cmpfiles(files_expected_path, files_real_path, common_files, shallow=False)
         if mismatch:
-            differences = self._print_file_differences(mismatch, files_expected_path, files_real_path)
-            self.assertEqual(mismatch, [], msg=f'Following files do not match: \n {differences}')
+            differences, diff_a, diff_b = self._print_file_differences(mismatch, files_expected_path, files_real_path)
+            self.assertEqual(diff_a, diff_b, msg=f'Following files do not match: \n {differences}')
         self.assertEqual(errors, [], f" Files : {errors} could not be compared")
 
     def _print_file_differences(self, mismatched_files: List[str], expected_folder: str, real_folder: str):
         differences = ''
+        diff_a = []
+        diff_b = []
         for mis_file in mismatched_files:
             source_path = os.path.join(real_folder, mis_file)
             expected_path = os.path.join(expected_folder, mis_file)
 
             with open(source_path, "r") as f1, open(expected_path, "r") as f2:
-                diff = difflib.unified_diff(f1.readlines(),
-                                            f2.readlines(), fromfile=source_path, tofile=expected_path)
+
+                if source_path.endswith('.manifest'):
+                    diff = difflib.unified_diff(json.dumps(json.loads(f1.read())).splitlines(),
+                                                json.dumps(json.loads(f2.read())).splitlines(), fromfile=source_path,
+                                                tofile=expected_path)
+
+                else:
+                    diff = difflib.unified_diff(f1.readlines(),
+                                                f2.readlines(), fromfile=source_path, tofile=expected_path)
 
                 for line in diff:
                     differences += line + '\n'
+
+                    for line in diff:
+                        differences += line + '\n'
+                        if line.startswith('-') and not line.startswith('---'):
+                            line_number = len(diff_a) + 1
+                            diff_a.append("Ln " + line[1:])
+                        elif line.startswith('+') and not line.startswith('+++'):
+                            line_number = len(diff_b) + 1
+                            diff_b.append("Ln " + line[1:])
+
             differences += '\n' + '==' * 30
-        return differences
+        return differences, diff_a, diff_b
 
     @property
     def source_data_dir(self) -> str:
