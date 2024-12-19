@@ -265,7 +265,7 @@ class TestDataDir(unittest.TestCase):
         equal, mismatch, errors = filecmp.cmpfiles(files_expected_path, files_real_path, common_files, shallow=False)
         if mismatch:
             differences, diff_a, diff_b = self._print_file_differences(mismatch, files_expected_path, files_real_path)
-            self.assertEqual(diff_a, diff_b, msg=f'Following files do not match: \n {differences}')
+            self.assertEqual(diff_a, diff_b, f" Different lines : \n {differences}")
         self.assertEqual(errors, [], f" Files : {errors} could not be compared")
 
     def _print_file_differences(self, mismatched_files: List[str], expected_folder: str, real_folder: str):
@@ -288,16 +288,14 @@ class TestDataDir(unittest.TestCase):
                                                 f2.readlines(), fromfile=source_path, tofile=expected_path)
 
                 for line in diff:
-                    differences += line + '\n'
-
-                    for line in diff:
-                        differences += line + '\n'
-                        if line.startswith('-') and not line.startswith('---'):
-                            line_number = len(diff_a) + 1
-                            diff_a.append("Ln " + line[1:])
-                        elif line.startswith('+') and not line.startswith('+++'):
-                            line_number = len(diff_b) + 1
-                            diff_b.append("Ln " + line[1:])
+                    if line.startswith('-') and not line.startswith('---'):
+                        line_number = len(diff_a) + 1
+                        diff_a.append(f"L#{line_number}|{line[1:]}")
+                        differences += f"L# {line_number} | {line[1:]}\n"
+                    elif line.startswith('+') and not line.startswith('+++'):
+                        line_number = len(diff_b) + 1
+                        diff_b.append(f"L#{line_number}|{line[1:]}")
+                        differences += f"L# {line_number} | {line[1:]}\n"
 
             differences += '\n' + '==' * 30
         return differences, diff_a, diff_b
