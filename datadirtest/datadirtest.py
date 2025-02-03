@@ -489,7 +489,7 @@ class DataDirTester:
             Runs functional tests specified in the provided folder based on the source/expected datadirs.
         """
         testing_dirs = self._get_testing_dirs(self._data_dir)
-        if self._selected_tests:
+        if self._selected_tests and self._selected_tests != [""]:
             testing_dirs = [d for d in testing_dirs if path.basename(d) in self._selected_tests]
             if not testing_dirs:
                 raise ValueError(f"None of the specified test names {self._selected_tests} were found in {self._data_dir}")
