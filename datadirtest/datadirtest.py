@@ -24,7 +24,8 @@ class TestDataDir(unittest.TestCase):
 
     def __init__(self, data_dir: str, component_script: str, method_name: str = 'compare_source_and_expected',
                  context_parameters: Optional[dict] = None, last_state_override: dict = None,
-                 artefacts_path: str = None, artifact_current_destination: Literal['custom', 'runs'] = 'runs'):
+                 artefacts_path: str = None, artifact_current_destination: Literal['custom', 'runs'] = 'runs',
+                 save_output: bool = False):
         """
         Args:
             method_name (str): name of the testing method to be run
@@ -34,6 +35,7 @@ class TestDataDir(unittest.TestCase):
             last_state_override (dict): Optional component state override
             artefacts_path (str): Optional path to the artifacts that should be copied to the component data folder
             artifact_current_destination (str): Optional artifact's destination. Accepts 'custom' or 'runs' Default runs
+            save_output (bool): If True, saves the output to output/--PATR-TO-THE-TEST-- directory
         """
         super(TestDataDir, self).__init__(methodName=method_name)
         self.component_script = component_script
@@ -48,6 +50,7 @@ class TestDataDir(unittest.TestCase):
         self._input_artifacts_override = artefacts_path
         self._artifact_current_destination = artifact_current_destination
         self.out_artifacts_path = None
+        self._save_output = save_output
 
     def _apply_env_variables(self):
         # convert to string minified
@@ -199,6 +202,10 @@ class TestDataDir(unittest.TestCase):
         if path.exists(tables_expected_path) or path.exists(tables_real_path):
             self.assert_directory_structure_match(tables_expected_path, tables_real_path)
             self.assert_directory_files_contents_match(tables_expected_path, tables_real_path)
+
+        if self._save_output:
+            self._save_test_output()
+
         logging.info("Tests passed successfully ")
 
     @staticmethod
@@ -308,6 +315,18 @@ class TestDataDir(unittest.TestCase):
     def source_config_path(self) -> str:
         return path.join(self.source_data_dir, 'config.json')
 
+    def _save_test_output(self):
+        """
+        Saves the test output to results/--NAME-OF-THE-TEST--/data directory
+        """
+        results_dir = path.join('output', self.orig_dir, 'data')
+        source_data = path.join(self.data_dir, 'source', 'data')
+        
+        if path.exists(source_data):
+            if path.exists(results_dir):
+                shutil.rmtree(results_dir)
+            shutil.copytree(source_data, results_dir)
+
 
 class TestChainedDatadirTest(unittest.TestCase):
     """
@@ -317,7 +336,8 @@ class TestChainedDatadirTest(unittest.TestCase):
     def __init__(self, data_dir: str, component_script: str, method_name: str = 'compare_source_and_expected',
                  context_parameters: Optional[dict] = None,
                  test_data_dir_class: Type[TestDataDir] = TestDataDir,
-                 artifact_current_destination: Literal['custom', 'runs'] = 'runs'):
+                 artifact_current_destination: Literal['custom', 'runs'] = 'runs',
+                 save_output: bool = False):
         """
         Args:
             method_name (str): name of the testing method to be run
@@ -325,6 +345,7 @@ class TestChainedDatadirTest(unittest.TestCase):
             component_script (str): file_path to component script that should be run
             context_parameters (dict): Optional context parameters injected from the DirTester runner.
             artifact_current_destination (str): Optional artifact's destination. Accepts 'custom' or 'runs' Default runs
+            save_output (bool): If True, saves the output of each test to results/--NAME-OF-THE-TEST--/data directory
         """
         super(TestChainedDatadirTest, self).__init__()
 
@@ -334,6 +355,7 @@ class TestChainedDatadirTest(unittest.TestCase):
         self._chained_tests_directory = data_dir
         self._chained_tests_method = method_name
         self._artifact_current_destination = artifact_current_destination
+        self._save_output = save_output
 
     def runTest(self):
         """
@@ -377,7 +399,8 @@ class TestChainedDatadirTest(unittest.TestCase):
                                  context_parameters=self._context_parameters,
                                  last_state_override=state_override,
                                  artefacts_path=artefacts_path,
-                                 artifact_current_destination=self._artifact_current_destination)
+                                 artifact_current_destination=self._artifact_current_destination,
+                                 save_output=self._save_output)
 
     @staticmethod
     def _get_testing_dirs(data_dir: str) -> List:
@@ -437,7 +460,9 @@ class DataDirTester:
                  component_script: str = Path('./src/component.py').absolute().as_posix(),
                  test_data_dir_class: Type[TestDataDir] = TestDataDir,
                  context_parameters: Optional[dict] = None,
-                 artifact_current_destination: Literal['custom', 'runs'] = 'runs'):
+                 artifact_current_destination: Literal['custom', 'runs'] = 'runs',
+                 save_output: bool = False,
+                 selected_tests: Optional[List[str]] = None):
         """
 
         Args:
@@ -448,20 +473,27 @@ class DataDirTester:
             Usefull when overriding the TestDataDirClass to add custom functionality
             test_data_dir_class (Type[TestDataDir]): Class extending datadirtest.TestDataDir class with additional
             functionality. It will be used for each test in the suit.
-
-
+            save_output (bool): If True, saves the output of each test to results/--NAME-OF-THE-TEST--/data directory
+            selected_tests (List[str]): Optional list of test names to run. If not provided, all tests will be run.
         """
         self._data_dir = data_dir
         self._component_script = component_script
         self._context_parameters = context_parameters or {}
         self.__test_class = test_data_dir_class
         self._artifact_current_destination = artifact_current_destination
+        self._save_output = save_output or os.environ.get('DIRTEST_SAVE_OUTPUT')
+        self._selected_tests = selected_tests or os.environ.get('DIRTEST_SELECTED_TESTS', "").split(",")
 
     def run(self):
         """
             Runs functional tests specified in the provided folder based on the source/expected datadirs.
         """
         testing_dirs = self._get_testing_dirs(self._data_dir)
+        if self._selected_tests:
+            testing_dirs = [d for d in testing_dirs if path.basename(d) in self._selected_tests]
+            if not testing_dirs:
+                raise ValueError(f"None of the specified test names {self._selected_tests} were found in {self._data_dir}")
+
         dir_test_suite = self._build_dir_test_suite(testing_dirs)
         test_runner = unittest.TextTestRunner(verbosity=3)
         result = test_runner.run(dir_test_suite)
@@ -500,13 +532,15 @@ class DataDirTester:
                                               component_script=self._component_script,
                                               context_parameters=self._context_parameters,
                                               test_data_dir_class=self.__test_class,
-                                              artifact_current_destination=self._artifact_current_destination)
+                                              artifact_current_destination=self._artifact_current_destination,
+                                              save_output=self._save_output)
             else:
 
                 test = self.__test_class(method_name='compare_source_and_expected',
                                          data_dir=testing_dir,
                                          component_script=self._component_script,
-                                         context_parameters=self._context_parameters)
+                                         context_parameters=self._context_parameters,
+                                         save_output=self._save_output)
 
             suite.addTest(test)
         return suite
