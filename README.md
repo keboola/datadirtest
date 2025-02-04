@@ -80,6 +80,12 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
+### Parameters for Debugging
+The `DataDirTester` class accepts the following parameters:
+- `save_output` (default: `False`): If `True`, the resulting data folders are saved in the `output` folder.
+- `selected_tests` (list of `str`): If set, only the tests with the specified names are executed.
+
+Both parameters can also be passed via environment variables: `DIRTEST_SAVE_OUTPUT` and `DIRTEST_SELECTED_TESTS` (comma-separated names).
 Then run your tests as usual e.g. via `python -m unittest discover` from the root folder.
 
 
