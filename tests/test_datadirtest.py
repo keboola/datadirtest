@@ -77,8 +77,8 @@ class TestComponent(unittest.TestCase):
         class CustomDatadirTest(TestDataDir):
 
             def __init__(self, data_dir: str, component_script: str, method_name: str = 'compare_source_and_expected',
-                         context_parameters: Optional[dict] = None):
-                super().__init__(data_dir, component_script, 'test_method', context_parameters)
+                         context_parameters: Optional[dict] = None, save_output: bool = False):
+                super().__init__(data_dir, component_script, 'test_method', context_parameters, save_output=save_output)
 
             def test_method(self):
                 print(self.context_parameters['custom_parameter'])
