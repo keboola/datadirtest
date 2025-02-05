@@ -330,13 +330,12 @@ class TestDataDir(unittest.TestCase):
         """
         Saves the test output to results/--NAME-OF-THE-TEST--/data directory
         """
-        results_dir = path.join("output", self.orig_dir, "data")
-        source_data = path.join(self.data_dir, "source", "data")
+        results_dir = path.join("/output", self.orig_dir.split("/tests/")[1], "data")
 
-        if path.exists(source_data):
+        if path.exists(self.source_data_dir):
             if path.exists(results_dir):
                 shutil.rmtree(results_dir)
-            shutil.copytree(source_data, results_dir)
+            shutil.copytree(self.source_data_dir, results_dir)
 
 
 class TestChainedDatadirTest(unittest.TestCase):
