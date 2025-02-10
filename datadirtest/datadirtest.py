@@ -204,15 +204,15 @@ class TestDataDir(unittest.TestCase):
         files_expected_path, tables_expected_path = self.get_data_paths(self.data_dir, "expected")
         files_real_path, tables_real_path = self.get_data_paths(self.data_dir, "source")
 
+        if self._save_output:
+            self._save_test_output()
+
         if path.exists(files_expected_path) or path.exists(files_real_path):
             self.assert_directory_structure_match(files_expected_path, files_real_path)
             self.assert_directory_files_contents_match(files_expected_path, files_real_path)
         if path.exists(tables_expected_path) or path.exists(tables_real_path):
             self.assert_directory_structure_match(tables_expected_path, tables_real_path)
             self.assert_directory_files_contents_match(tables_expected_path, tables_real_path)
-
-        if self._save_output:
-            self._save_test_output()
 
         logging.info("Tests passed successfully ")
 
