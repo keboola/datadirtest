@@ -62,7 +62,8 @@ class TestDataDir(unittest.TestCase):
     def _apply_env_variables(self):
         # convert to string minified
         pattern = r"({{env.(.+)}})"
-        cfg_string = open(self.source_config_path, "r").read()
+        with open(self.source_config_path) as f:
+            cfg_string = f.read()
         matches = re.findall(pattern, cfg_string)
         new_string = cfg_string
         for m in matches:
@@ -111,7 +112,8 @@ class TestDataDir(unittest.TestCase):
         result_state = {}
         state_file = os.path.join(self.source_data_dir, "out", "state.json")
         if os.path.exists(state_file):
-            result_state = json.load(open(state_file, "r"))
+            with open(state_file) as f:
+                result_state = json.load(f)
         self.result_state = result_state
 
     def _move_artifacts_to_tmp(self) -> None:
