@@ -3,7 +3,7 @@ import setuptools
 
 setup(
     name="datadirtest",
-    version="1.8.6",
+    version="1.8.7",
     setup_requires=["setuptools_scm"],
     install_requires=["pathlib"],
     url="https://bitbucket.org/kds_consulting_team/datadirtest",
