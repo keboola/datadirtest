@@ -2,13 +2,13 @@ from distutils.core import setup
 import setuptools
 
 setup(
-    name='datadirtest',
-    version='1.8.6',
-    setup_requires=['setuptools_scm'],
-    install_requires=['pathlib'],
-    url='https://bitbucket.org/kds_consulting_team/datadirtest',
-    download_url='https://bitbucket.org/kds_consulting_team/datadirtest',
+    name="datadirtest",
+    version="1.8.6",
+    setup_requires=["setuptools_scm"],
+    install_requires=["pathlib"],
+    url="https://bitbucket.org/kds_consulting_team/datadirtest",
+    download_url="https://bitbucket.org/kds_consulting_team/datadirtest",
     packages=setuptools.find_packages(),
-    test_suite='tests',
-    license="MIT"
+    test_suite="tests",
+    license="MIT",
 )

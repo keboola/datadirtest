@@ -1,4 +1,5 @@
 from datadirtest import TestDataDir
 
+
 def run(context: TestDataDir):
-    print('tearDown1')
+    print("tearDown1")

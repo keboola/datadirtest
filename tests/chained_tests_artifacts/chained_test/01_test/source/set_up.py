@@ -2,4 +2,4 @@ from datadirtest import TestDataDir
 
 
 def run(context: TestDataDir):
-    print('setUp1')
+    print("setUp1")
