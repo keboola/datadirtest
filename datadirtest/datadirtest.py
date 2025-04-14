@@ -69,7 +69,7 @@ class TestDataDir(unittest.TestCase):
         for m in matches:
             replace_value = os.getenv(m[1])
             if not replace_value:
-                raise ValueError(f"Environment variable {m[1]}  defined in config is missing")
+                raise ValueError(f"Environment variable {m[1]} defined in config is missing")
             new_string = new_string.replace(m[0], replace_value)
 
         # replace with new version
@@ -274,7 +274,7 @@ class TestDataDir(unittest.TestCase):
         If not the error message prints out which files differ in each directory
 
         Args:
-            files_expected_path:  Path holding expected files
+            files_expected_path: Path holding expected files
             files_real_path: Path holding real/source files
         """
         file_paths = self.get_all_files_in_dir(files_expected_path)
