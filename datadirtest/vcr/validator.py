@@ -10,7 +10,6 @@ import csv
 import difflib
 import hashlib
 import json
-import os
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
@@ -70,9 +69,7 @@ class ValidationResult:
                 elif diff.diff_type == "hash_mismatch":
                     lines.append(f"  ~ {diff.file_path}: content changed")
                     if diff.expected.get("row_count") and diff.actual.get("row_count"):
-                        lines.append(
-                            f"      rows: {diff.expected.get('row_count')} -> {diff.actual.get('row_count')}"
-                        )
+                        lines.append(f"      rows: {diff.expected.get('row_count')} -> {diff.actual.get('row_count')}")
                     lines.append(
                         f"      size: {diff.expected.get('size_bytes', 0)} -> {diff.actual.get('size_bytes', 0)} bytes"
                     )

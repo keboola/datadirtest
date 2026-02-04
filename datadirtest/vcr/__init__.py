@@ -25,10 +25,8 @@ Example usage:
 
 import json
 import logging
-import os
-from os import path
 from pathlib import Path
-from typing import Callable, Dict, List, Literal, Optional, Type, Any
+from typing import Dict, List, Literal, Optional, Type
 
 from ..datadirtest import DataDirTester, TestDataDir
 
@@ -208,9 +206,7 @@ class VCRTestDataDir(TestDataDir):
                     self.vcr_recorder.record(super().run_component)
                 else:
                     # No cassette and no secrets, run without VCR
-                    logger.info(
-                        f"No cassette and no secrets for {self.id()}, running without VCR"
-                    )
+                    logger.info(f"No cassette and no secrets for {self.id()}, running without VCR")
                     super().run_component()
 
     def compare_source_and_expected(self):

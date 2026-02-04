@@ -17,9 +17,8 @@ Example test:
         assert result.success
 """
 
-import os
 from pathlib import Path
-from typing import Generator, List, Optional
+from typing import List, Optional
 
 import pytest
 
@@ -179,10 +178,7 @@ def functional_test_dirs(functional_dir) -> List[Path]:
     if not functional_dir.exists():
         return []
 
-    return sorted([
-        d for d in functional_dir.iterdir()
-        if d.is_dir() and not d.name.startswith("_")
-    ])
+    return sorted([d for d in functional_dir.iterdir() if d.is_dir() and not d.name.startswith("_")])
 
 
 def pytest_generate_tests(metafunc):
@@ -193,15 +189,10 @@ def pytest_generate_tests(metafunc):
     this hook generates a test for each test directory.
     """
     if "functional_test_case" in metafunc.fixturenames:
-        functional_dir = Path(
-            metafunc.config.getoption("--functional-dir")
-        ).absolute()
+        functional_dir = Path(metafunc.config.getoption("--functional-dir")).absolute()
 
         if functional_dir.exists():
-            test_dirs = [
-                d.name for d in functional_dir.iterdir()
-                if d.is_dir() and not d.name.startswith("_")
-            ]
+            test_dirs = [d.name for d in functional_dir.iterdir() if d.is_dir() and not d.name.startswith("_")]
             metafunc.parametrize("functional_test_case", sorted(test_dirs))
 
 
@@ -273,7 +264,6 @@ def run_vcr_test(vcr_test_runner):
 
     def _run_test(test_name: str) -> VCRTestResult:
         import io
-        import sys
         import unittest
 
         # Create a test suite with just the specified test

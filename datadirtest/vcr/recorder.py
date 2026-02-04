@@ -8,14 +8,11 @@ for deterministic testing.
 
 import json
 import logging
-import os
-from datetime import datetime
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Union
+from typing import Any, Callable, Dict, List, Optional
 
 try:
     import vcr
-    from vcr.cassette import Cassette
 except ImportError:
     vcr = None  # type: ignore
 
@@ -115,15 +112,9 @@ class VCRRecorder:
     def _check_dependencies():
         """Check that required dependencies are installed."""
         if vcr is None:
-            raise ImportError(
-                "vcrpy is required for VCR functionality. "
-                "Install it with: pip install vcrpy"
-            )
+            raise ImportError("vcrpy is required for VCR functionality. Install it with: pip install vcrpy")
         if freeze_time is None:
-            raise ImportError(
-                "freezegun is required for VCR functionality. "
-                "Install it with: pip install freezegun"
-            )
+            raise ImportError("freezegun is required for VCR functionality. Install it with: pip install freezegun")
 
     @classmethod
     def from_test_dir(
@@ -296,8 +287,7 @@ class VCRRecorder:
         """
         if not self.has_cassette():
             raise CassetteMissingError(
-                f"No cassette found at {self.cassette_path}. "
-                "Run with --record flag to create one."
+                f"No cassette found at {self.cassette_path}. Run with --record flag to create one."
             )
 
         logger.info(f"Replaying HTTP interactions from {self.cassette_path}")

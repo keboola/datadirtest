@@ -152,7 +152,7 @@ class TestScaffolder:
         test_name = definition["name"]
         config = definition["config"]
         secrets = definition.get("secrets", {})
-        description = definition.get("description", "")
+        _ = definition.get("description", "")  # Reserved for future use
 
         # Create directory structure
         test_dir = output_dir / test_name

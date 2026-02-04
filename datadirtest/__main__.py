@@ -94,7 +94,8 @@ def create_parser():
         help="Validate outputs against hash-based snapshots",
     )
     validation_group.add_argument(
-        "--verbose", "-v",
+        "--verbose",
+        "-v",
         action="store_true",
         help="Enable verbose output (show full diffs)",
     )

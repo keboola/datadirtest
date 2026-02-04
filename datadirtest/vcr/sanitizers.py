@@ -6,7 +6,7 @@ redact sensitive information from recorded HTTP interactions.
 """
 
 import re
-from abc import ABC, abstractmethod
+from abc import ABC
 from typing import Any, Dict, List, Optional
 
 
@@ -108,8 +108,7 @@ class TokenSanitizer(BaseSanitizer):
                 values = request.headers.get(header_name, [])
                 if isinstance(values, list):
                     request.headers[header_name] = [
-                        self._sanitize_string(v) if isinstance(v, str) else v
-                        for v in values
+                        self._sanitize_string(v) if isinstance(v, str) else v for v in values
                     ]
                 elif isinstance(values, str):
                     request.headers[header_name] = self._sanitize_string(values)
@@ -188,9 +187,7 @@ class HeaderSanitizer(BaseSanitizer):
             if additional_safe_headers:
                 self.safe_headers.update(h.lower() for h in additional_safe_headers)
 
-        self.headers_to_remove = set(
-            h.lower() for h in (headers_to_remove or [])
-        )
+        self.headers_to_remove = set(h.lower() for h in (headers_to_remove or []))
 
     def _filter_headers(self, headers: Dict) -> Dict:
         """Filter headers to only include safe ones."""
@@ -273,8 +270,6 @@ class BodyFieldSanitizer(BaseSanitizer):
 
     def _sanitize_dict(self, d: Dict) -> Dict:
         """Sanitize specified fields in a dictionary."""
-        import json
-
         result = {}
         for key, value in d.items():
             if key in self.fields:
@@ -282,10 +277,7 @@ class BodyFieldSanitizer(BaseSanitizer):
             elif self.nested and isinstance(value, dict):
                 result[key] = self._sanitize_dict(value)
             elif self.nested and isinstance(value, list):
-                result[key] = [
-                    self._sanitize_dict(item) if isinstance(item, dict) else item
-                    for item in value
-                ]
+                result[key] = [self._sanitize_dict(item) if isinstance(item, dict) else item for item in value]
             else:
                 result[key] = value
         return result
@@ -367,6 +359,7 @@ def create_default_sanitizer(secrets: Dict[str, Any]) -> CompositeSanitizer:
     Returns:
         A CompositeSanitizer with sensible defaults
     """
+
     # Extract all string values from secrets recursively
     def extract_values(d: Dict, values: List[str]) -> List[str]:
         for key, value in d.items():
