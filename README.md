@@ -248,3 +248,202 @@ The execution flow of the example `my-chained-test` looks like this:
 5. run `tear_down_py`
 
 Note that the tests in the `functional` folder are executed in random order.
+
+---
+
+## VCR Integration (HTTP Recording/Replay)
+
+The VCR module enables recording and replaying HTTP interactions, making tests:
+- **Deterministic** - Same responses every time
+- **Fast** - No real HTTP calls during replay
+- **CI-friendly** - No credentials needed in CI/CD pipelines
+
+### Installation
+
+```bash
+# Install with VCR support
+pip install datadirtest[vcr]
+
+# Install with pytest support
+pip install datadirtest[pytest]
+
+# Install all features
+pip install datadirtest[all]
+```
+
+### Quick Start
+
+#### 1. Record HTTP interactions (run locally with credentials)
+
+```bash
+python -m datadirtest tests/functional src/component.py --record
+```
+
+This creates cassette files in `source/data/cassettes/requests.json` for each test.
+
+#### 2. Replay in CI (no credentials needed)
+
+```bash
+python -m datadirtest tests/functional src/component.py
+```
+
+By default, VCR automatically replays if cassettes exist.
+
+### Test Structure with VCR
+
+```
+tests/functional/
+└── test_api_extraction/
+    ├── source/
+    │   └── data/
+    │       ├── config.json              # Config with placeholders
+    │       ├── config.secrets.json      # Real credentials (gitignored)
+    │       ├── cassettes/
+    │       │   └── requests.json        # Recorded HTTP interactions
+    │       └── sanitizers.py            # Optional custom sanitizers
+    └── expected/
+        └── data/
+            └── out/
+                └── tables/
+                    └── main.csv
+```
+
+### Secrets Management
+
+Create `config.secrets.json` (add to `.gitignore`) with real credentials:
+
+```json
+{
+  "token": "real_api_key_here",
+  "password": "secret_password"
+}
+```
+
+In `config.json`, use placeholders:
+
+```json
+{
+  "parameters": {
+    "#token": "{{secret.token}}",
+    "#password": "{{secret.password}}"
+  }
+}
+```
+
+During recording, secrets are automatically merged and sanitized from cassettes.
+
+### CLI Reference
+
+```bash
+# Run with auto mode (replay if cassettes exist)
+python -m datadirtest tests/functional src/component.py
+
+# Record new cassettes
+python -m datadirtest tests/functional src/component.py --record
+
+# Force replay (fail if no cassettes)
+python -m datadirtest tests/functional src/component.py --replay
+
+# Update existing cassettes
+python -m datadirtest tests/functional src/component.py --update-cassettes
+
+# Run without VCR (original behavior)
+python -m datadirtest tests/functional src/component.py --no-vcr
+
+# Run specific tests
+python -m datadirtest tests/functional src/component.py --tests test_basic,test_advanced
+
+# Verbose output with full diffs
+python -m datadirtest tests/functional src/component.py --verbose
+
+# Custom freeze time
+python -m datadirtest tests/functional src/component.py --freeze-time 2024-06-15T10:00:00
+```
+
+### Python API
+
+```python
+from datadirtest import VCRDataDirTester
+
+# Run with automatic VCR
+tester = VCRDataDirTester(
+    data_dir='tests/functional',
+    component_script='src/component.py',
+    vcr_mode='auto'  # 'record', 'replay', or 'auto'
+)
+tester.run()
+```
+
+### Custom Sanitizers
+
+Create `source/data/sanitizers.py` to customize how sensitive data is redacted:
+
+```python
+from datadirtest.vcr import BaseSanitizer
+
+class AccountIdSanitizer(BaseSanitizer):
+    def before_record_request(self, request):
+        # Replace account IDs in URLs
+        request.uri = request.uri.replace("act_123456", "act_REDACTED")
+        return request
+
+def get_sanitizers(config: dict) -> list:
+    """Return sanitizers for this test."""
+    return [AccountIdSanitizer()]
+```
+
+### Scaffolding Tests
+
+Generate test folders from a definitions file:
+
+```bash
+# Create test structure and record cassettes
+python -m datadirtest scaffold definitions.json tests/functional src/component.py
+
+# Create structure only (no recording)
+python -m datadirtest scaffold definitions.json tests/functional --no-record
+```
+
+Example `definitions.json`:
+
+```json
+[
+  {
+    "name": "test_basic_extraction",
+    "config": {
+      "parameters": {"endpoint": "/api/data"}
+    },
+    "secrets": {"token": "real_api_key"},
+    "description": "Basic extraction test"
+  }
+]
+```
+
+### Pytest Integration
+
+Add to your `conftest.py`:
+
+```python
+pytest_plugins = ["datadirtest.vcr.pytest_plugin"]
+```
+
+Run with pytest:
+
+```bash
+# Auto mode
+pytest tests/
+
+# Record mode
+pytest tests/ --vcr-record
+
+# Replay mode (strict)
+pytest tests/ --vcr-replay
+```
+
+### Best Practices
+
+1. **Always gitignore secrets**: Add `config.secrets.json` to `.gitignore`
+2. **Commit cassettes**: Cassettes should be committed to version control
+3. **Re-record when API changes**: Use `--update-cassettes` when APIs change
+4. **Use meaningful test names**: Helps identify which cassette belongs to which test
+5. **Review cassettes**: Check that no sensitive data leaked into recordings
