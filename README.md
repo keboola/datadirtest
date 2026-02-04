@@ -3,23 +3,28 @@
 This library enables functional testing for Keboola components and processors by comparing expected and 
 real output directories.
 
-[**API Docs**](https://htmlpreview.github.io/?https://bitbucket.org/kds_consulting_team/datadirtest/raw/master/docs/html/datadirtest/datadirtest.html)
+[![CI](https://github.com/keboola/datadirtest/actions/workflows/ci.yml/badge.svg)](https://github.com/keboola/datadirtest/actions/workflows/ci.yml)
 
-### Introduction ###
-By defining a direc
+## Quickstart
 
-## Quickstart ##
+### Installation
 
-### Installation ###
+Install via pip from GitHub:
 
-Add to requirements 
+```bash
+# Basic installation
+pip install git+https://github.com/keboola/datadirtest.git
+
+# With VCR support (HTTP recording/replay)
+pip install "datadirtest[vcr] @ git+https://github.com/keboola/datadirtest.git"
+
+# With all features
+pip install "datadirtest[all] @ git+https://github.com/keboola/datadirtest.git"
 ```
-https://bitbucket.org/kds_consulting_team/datadirtest/get/VERSION_NUMBER.zip#egg=datadirtest
-```
 
-Or install via PIP
+Or add to `requirements.txt`:
 ```
-pip install https://bitbucket.org/kds_consulting_team/datadirtest/get/VERSION_NUMBER.zip#egg=datadirtest
+datadirtest @ git+https://github.com/keboola/datadirtest.git
 ```
 
 ### Use of the library ###

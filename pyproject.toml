@@ -46,19 +46,14 @@ dev = [
 datadirtest_vcr = "datadirtest.vcr.pytest_plugin"
 
 [project.urls]
-Homepage = "https://bitbucket.org/kds_consulting_team/datadirtest"
-Repository = "https://bitbucket.org/kds_consulting_team/datadirtest"
+Homepage = "https://github.com/keboola/datadirtest"
+Repository = "https://github.com/keboola/datadirtest"
 
 [tool.setuptools.packages.find]
 include = ["datadirtest*"]
 
 [tool.ruff]
 line-length = 120
-target-version = "py38"
-
-[tool.ruff.lint]
-select = ["E", "F", "W", "I", "N", "D", "UP", "B", "C4", "SIM"]
-ignore = ["D100", "D101", "D102", "D103", "D104", "D105", "D107", "D203", "D213"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
