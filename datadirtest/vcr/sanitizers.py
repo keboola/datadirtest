@@ -318,6 +318,79 @@ class BodyFieldSanitizer(BaseSanitizer):
         return response
 
 
+class QueryParameterTokenSanitizer(BaseSanitizer):
+    """
+    Replaces URL query parameter values with a placeholder.
+
+    Unlike TokenSanitizer which requires knowing the exact token values,
+    this sanitizer replaces ANY value of specified query parameters.
+    This catches runtime-acquired tokens (e.g. Facebook page tokens)
+    that aren't known at recording time.
+
+    Example:
+        sanitizer = QueryParameterTokenSanitizer(
+            parameters=["access_token"], replacement="token"
+        )
+        # "...?access_token=EAACh5tPbZAJEB..." -> "...?access_token=token..."
+    """
+
+    def __init__(self, parameters: List[str] = None, replacement: str = "token"):
+        self.parameters = parameters or ["access_token"]
+        self.replacement = replacement
+        # Build regex patterns for each parameter
+        self._patterns = [
+            re.compile(rf'({re.escape(param)}=)[^&"\s]+')
+            for param in self.parameters
+        ]
+
+    def _sanitize_string(self, value: str) -> str:
+        """Replace parameter values in a string."""
+        for pattern in self._patterns:
+            value = pattern.sub(rf'\1{self.replacement}', value)
+        return value
+
+    def before_record_request(self, request: Any) -> Any:
+        """Sanitize query parameters in request URI."""
+        if hasattr(request, "uri"):
+            request.uri = self._sanitize_string(request.uri)
+        return request
+
+    def before_record_response(self, response: Dict) -> Dict:
+        """Sanitize query parameters in response body strings."""
+        if "body" in response:
+            body = response["body"]
+            if isinstance(body, dict) and "string" in body:
+                if isinstance(body["string"], str):
+                    body["string"] = self._sanitize_string(body["string"])
+                elif isinstance(body["string"], bytes):
+                    body_str = body["string"].decode("utf-8", errors="ignore")
+                    body["string"] = self._sanitize_string(body_str).encode("utf-8")
+        return response
+
+
+class CallbackSanitizer(BaseSanitizer):
+    """
+    Wraps raw callback functions as a sanitizer.
+
+    Allows components to provide custom sanitization logic
+    without subclassing BaseSanitizer.
+    """
+
+    def __init__(self, before_request=None, before_response=None):
+        self._before_request = before_request
+        self._before_response = before_response
+
+    def before_record_request(self, request):
+        if self._before_request:
+            return self._before_request(request)
+        return request
+
+    def before_record_response(self, response):
+        if self._before_response:
+            return self._before_response(response)
+        return response
+
+
 class CompositeSanitizer(BaseSanitizer):
     """
     Combines multiple sanitizers into a single sanitizer.
@@ -389,6 +462,7 @@ def create_default_sanitizer(secrets: Dict[str, Any]) -> CompositeSanitizer:
                 "x-access-token",
             ]
         ),
+        QueryParameterTokenSanitizer(parameters=["access_token"]),
     ]
 
     if secret_values:
