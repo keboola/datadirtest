@@ -338,6 +338,45 @@ class VCRRecorder:
         else:
             raise ValueError(f"Invalid VCR mode: {mode}. Must be 'record', 'replay', or 'auto'")
 
+    @classmethod
+    def record_debug_run(
+        cls,
+        component_runner: Callable[[], None],
+        secrets: Optional[Dict[str, Any]] = None,
+    ) -> None:
+        """
+        Record HTTP interactions during a Keboola platform debug run.
+
+        Reads KBC_DATADIR, KBC_CONFIGID, KBC_COMPONENTID from environment,
+        suppresses verbose logging that leaks tokens, and records a cassette
+        to /data/out/files/ for download as an artifact.
+
+        Args:
+            component_runner: Callable that runs the component
+            secrets: Secret values to sanitize from recordings
+        """
+        import os
+        from datetime import datetime
+
+        # Suppress loggers that print full URIs (including access tokens) at DEBUG level
+        for name in ("vcr", "urllib3"):
+            logging.getLogger(name).setLevel(logging.WARNING)
+
+        data_dir = os.environ.get("KBC_DATADIR", "/data")
+        output_dir = Path(data_dir) / "out" / "files"
+        config_id = os.environ.get("KBC_CONFIGID", "unknown")
+        component_id = os.environ.get("KBC_COMPONENTID", "component").replace(".", "-")
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+
+        recorder = cls(
+            cassette_dir=output_dir,
+            secrets=secrets or {},
+            record_mode="all",
+            freeze_time_at=None,
+            cassette_file=f"vcr_debug_{component_id}_{config_id}_{timestamp}.json",
+        )
+        recorder.record(component_runner)
+
     def clear_cassette(self) -> bool:
         """
         Delete the cassette file if it exists.
