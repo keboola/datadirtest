@@ -106,6 +106,11 @@ class VCRRecorder:
         else:
             self.sanitizer = create_default_sanitizer(self.secrets)
 
+        # Response sanitization is skipped during replay — cassettes already
+        # contain sanitized data from when they were recorded.  Only request
+        # sanitization runs during replay (needed for matching).
+        self._is_replaying = False
+
         # Configure VCR
         self._vcr = self._create_vcr_instance()
 
@@ -230,7 +235,14 @@ class VCRRecorder:
         return self.sanitizer.before_record_request(request)
 
     def _before_record_response(self, response: Dict) -> Dict:
-        """Apply sanitizers before recording response."""
+        """Apply sanitizers before recording response.
+
+        Skipped during replay — cassettes already contain sanitized data
+        from recording time.  Re-sanitizing during replay would cause
+        output drift whenever sanitizers change.
+        """
+        if self._is_replaying:
+            return response
         return self.sanitizer.before_record_response(response)
 
     def has_cassette(self) -> bool:
@@ -301,13 +313,17 @@ class VCRRecorder:
             record_mode="none",
         )
 
-        if effective_freeze_time:
-            with freeze_time(effective_freeze_time):
+        self._is_replaying = True
+        try:
+            if effective_freeze_time:
+                with freeze_time(effective_freeze_time):
+                    with vcr_context:
+                        component_runner()
+            else:
                 with vcr_context:
                     component_runner()
-        else:
-            with vcr_context:
-                component_runner()
+        finally:
+            self._is_replaying = False
 
         logger.info("Replay completed successfully")
 
