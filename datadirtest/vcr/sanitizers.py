@@ -368,6 +368,85 @@ class QueryParameterTokenSanitizer(BaseSanitizer):
         return response
 
 
+class ResponseUrlSanitizer(BaseSanitizer):
+    """
+    Sanitizes dynamic query parameters from URLs in response bodies.
+
+    Useful for CDN URLs (e.g. Facebook, Instagram) that contain ephemeral
+    query parameters which change between requests, causing cassette
+    mismatches during VCR replay.
+
+    Only processes responses whose body contains at least one of the
+    specified domains — skips all others without JSON re-serialization
+    to avoid data corruption during cassette loading.
+
+    Example:
+        sanitizer = ResponseUrlSanitizer(
+            dynamic_params=["_nc_gid", "_nc_ohc", "oh", "oe"],
+            url_domains=["fbcdn.net", "cdninstagram.com"],
+        )
+    """
+
+    def __init__(self, dynamic_params: List[str], url_domains: List[str]):
+        """
+        Args:
+            dynamic_params: Query parameter names to strip from matching URLs.
+            url_domains: Domain substrings that identify URLs to sanitize.
+        """
+        self.url_domains = url_domains
+        # Build a single regex that matches any of the dynamic params as
+        # query-string key=value pairs (including leading & or ?).
+        param_alts = "|".join(re.escape(p) for p in dynamic_params)
+        # Matches ?param=value or &param=value  (value = everything up to next & or quote/whitespace)
+        self._param_re = re.compile(rf'[?&](?:{param_alts})=[^&"\s]*')
+
+    def _body_has_matching_domain(self, body_str: str) -> bool:
+        """Quick check whether the body contains any target domain."""
+        return any(domain in body_str for domain in self.url_domains)
+
+    def _sanitize_url(self, url: str) -> str:
+        """Strip dynamic params from a single URL."""
+        sanitized = self._param_re.sub("", url)
+        # If we removed the first param (was prefixed with ?) the next param
+        # now starts with & but should start with ? — fix that.
+        if "?" not in sanitized and "&" in sanitized:
+            sanitized = sanitized.replace("&", "?", 1)
+        return sanitized
+
+    def _sanitize_body_string(self, body_str: str) -> str:
+        """Find URLs matching target domains and strip dynamic params."""
+        if not self._body_has_matching_domain(body_str):
+            return body_str
+
+        # Match URLs containing any of the target domains
+        domain_alts = "|".join(re.escape(d) for d in self.url_domains)
+        url_re = re.compile(rf'https?://[^\s"\'<>]*(?:{domain_alts})[^\s"\'<>]*')
+        return url_re.sub(lambda m: self._sanitize_url(m.group(0)), body_str)
+
+    def before_record_response(self, response: Dict) -> Dict:
+        """Sanitize CDN URLs in response body strings."""
+        if "body" not in response:
+            return response
+        body = response["body"]
+        if not isinstance(body, dict) or "string" not in body:
+            return response
+
+        if isinstance(body["string"], str):
+            if not self._body_has_matching_domain(body["string"]):
+                return response
+            body["string"] = self._sanitize_body_string(body["string"])
+        elif isinstance(body["string"], bytes):
+            try:
+                decoded = body["string"].decode("utf-8", errors="ignore")
+            except Exception:
+                return response
+            if not self._body_has_matching_domain(decoded):
+                return response
+            body["string"] = self._sanitize_body_string(decoded).encode("utf-8")
+
+        return response
+
+
 class CallbackSanitizer(BaseSanitizer):
     """
     Wraps raw callback functions as a sanitizer.
