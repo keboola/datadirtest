@@ -21,7 +21,7 @@ try:
 except ImportError:
     freeze_time = None  # type: ignore
 
-from .sanitizers import BaseSanitizer, CompositeSanitizer, create_default_sanitizer
+from .sanitizers import BaseSanitizer, CompositeSanitizer, DefaultSanitizer, create_default_sanitizer
 
 logger = logging.getLogger(__name__)
 
@@ -128,6 +128,7 @@ class VCRRecorder:
         test_data_dir: Path,
         cassette_subdir: str = "cassettes",
         secrets_file: Optional[str] = None,
+        secrets_override: Optional[Dict[str, Any]] = None,
         **kwargs,
     ) -> "VCRRecorder":
         """
@@ -144,6 +145,8 @@ class VCRRecorder:
             test_data_dir: Path to the test's data directory (source/data)
             cassette_subdir: Subdirectory name for cassettes
             secrets_file: Path to secrets file (default: config.secrets.json in test_data_dir)
+            secrets_override: Optional dict of secrets to use instead of loading from file.
+                             When provided, these values are used for sanitizer construction.
             **kwargs: Additional arguments passed to VCRRecorder constructor
 
         Returns:
@@ -152,9 +155,12 @@ class VCRRecorder:
         test_data_dir = Path(test_data_dir)
         cassette_dir = test_data_dir / cassette_subdir
 
-        # Load secrets if file exists
-        secrets_path = Path(secrets_file) if secrets_file else test_data_dir / cls.DEFAULT_SECRETS_FILE
-        secrets = cls._load_secrets_file(secrets_path)
+        # Load secrets — prefer override, then file
+        if secrets_override is not None:
+            secrets = secrets_override
+        else:
+            secrets_path = Path(secrets_file) if secrets_file else test_data_dir / cls.DEFAULT_SECRETS_FILE
+            secrets = cls._load_secrets_file(secrets_path)
 
         # Load custom sanitizers if defined
         sanitizers = kwargs.pop("sanitizers", None)

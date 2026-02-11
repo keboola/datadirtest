@@ -356,10 +356,13 @@ class TestScaffolder:
         with open(source_data_dir / "config.json", "w") as f:
             json.dump(recording_config, f, indent=2)
 
-        # Create recorder
+        # Create recorder — pass secrets_override so the sanitizer knows
+        # about the real credential values even though config.json on disk
+        # may contain dummy placeholders.
         recorder = VCRRecorder.from_test_dir(
             test_data_dir=source_data_dir,
             freeze_time_at=freeze_time_at,
+            secrets_override=secrets_override,
         )
 
         # Run component with recording
