@@ -109,7 +109,7 @@ class OutputSnapshot:
             ignore_patterns: List of filename patterns to ignore
         """
         self.hash_algorithm = hash_algorithm
-        self.ignore_patterns = ignore_patterns or [".DS_Store", ".gitkeep", "*.manifest"]
+        self.ignore_patterns = ignore_patterns or [".DS_Store", ".gitkeep"]
 
     def _should_ignore(self, filename: str) -> bool:
         """Check if a file should be ignored based on patterns."""
