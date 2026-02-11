@@ -5,6 +5,7 @@ This module provides pluggable sanitization classes that can be used to
 redact sensitive information from recorded HTTP interactions.
 """
 
+import json
 import re
 from abc import ABC
 from typing import Any, Dict, List, Optional
@@ -40,6 +41,174 @@ class BaseSanitizer(ABC):
         Returns:
             The sanitized response dictionary
         """
+        return response
+
+
+class DefaultSanitizer(BaseSanitizer):
+    """
+    Smart unified sanitizer for VCR cassettes.
+
+    Two core functions applied to all HTTP interactions:
+    - _sanitize_url(): query params + exact value replacement
+    - _sanitize_body(): tries JSON -> form-encoded -> exact value replacement
+
+    Customization per component:
+    - sensitive_fields: override default field names to redact
+    - additional_sensitive_fields: extend defaults without replacing
+    - sensitive_values: exact strings from secrets file
+    - safe_headers: override default header whitelist
+    - additional_safe_headers: extend default whitelist
+    """
+
+    DEFAULT_SENSITIVE_FIELDS = [
+        "access_token", "refresh_token", "id_token",
+        "client_id", "client_secret", "client_assertion",
+        "code", "password", "token",
+    ]
+
+    DEFAULT_SAFE_HEADERS = [
+        "content-type", "content-length", "accept",
+    ]
+
+    def __init__(
+        self,
+        sensitive_fields: Optional[List[str]] = None,
+        additional_sensitive_fields: Optional[List[str]] = None,
+        sensitive_values: Optional[List[str]] = None,
+        safe_headers: Optional[List[str]] = None,
+        additional_safe_headers: Optional[List[str]] = None,
+        replacement: str = "REDACTED",
+    ):
+        # Build sensitive fields set
+        if sensitive_fields is not None:
+            self.sensitive_fields = set(sensitive_fields)
+        else:
+            self.sensitive_fields = set(self.DEFAULT_SENSITIVE_FIELDS)
+        if additional_sensitive_fields:
+            self.sensitive_fields.update(additional_sensitive_fields)
+
+        # Build header whitelist
+        if safe_headers is not None:
+            self.safe_headers = set(h.lower() for h in safe_headers)
+        else:
+            self.safe_headers = set(h.lower() for h in self.DEFAULT_SAFE_HEADERS)
+        if additional_safe_headers:
+            self.safe_headers.update(h.lower() for h in additional_safe_headers)
+
+        # Sort known values longest-first to prevent partial JWT replacement
+        self.sensitive_values = sorted(
+            [v for v in (sensitive_values or []) if v],
+            key=len, reverse=True,
+        )
+        self.replacement = replacement
+        # Pre-compile regex for form-encoded/query param matching
+        self._field_patterns = [
+            re.compile(rf'({re.escape(f)}=)[^&"\s]+')
+            for f in self.sensitive_fields
+        ]
+
+    # -- Core function 1: URL sanitization --
+
+    def _sanitize_url(self, url: str) -> str:
+        """Sanitize query params by field name, then replace known secret values."""
+        result = url
+        for pattern in self._field_patterns:
+            result = pattern.sub(rf'\1{self.replacement}', result)
+        for value in self.sensitive_values:
+            if value in result:
+                result = result.replace(value, self.replacement)
+        return result
+
+    # -- Core function 2: Body sanitization --
+
+    def _sanitize_body(self, body: str) -> str:
+        """Sanitize body: try JSON -> form-encoded -> exact value replacement."""
+        if not body:
+            return body
+
+        # 1. Try JSON
+        try:
+            data = json.loads(body)
+            sanitized = self._sanitize_json_value(data)
+            return json.dumps(sanitized)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            pass
+
+        # 2. Try form-encoded param patterns (same regex as URL)
+        result = body
+        for pattern in self._field_patterns:
+            result = pattern.sub(rf'\1{self.replacement}', result)
+
+        # 3. Always do exact value replacement as catch-all
+        for value in self.sensitive_values:
+            if value in result:
+                result = result.replace(value, self.replacement)
+        return result
+
+    def _sanitize_json_value(self, data: Any) -> Any:
+        """Recursively sanitize JSON data by field name and known values."""
+        if isinstance(data, dict):
+            result = {}
+            for key, value in data.items():
+                if key in self.sensitive_fields:
+                    result[key] = self.replacement
+                else:
+                    result[key] = self._sanitize_json_value(value)
+            return result
+        elif isinstance(data, list):
+            return [self._sanitize_json_value(item) for item in data]
+        elif isinstance(data, str):
+            # Replace known secret values in string fields (catches embedded tokens)
+            result = data
+            for value in self.sensitive_values:
+                if value in result:
+                    result = result.replace(value, self.replacement)
+            return result
+        return data
+
+    # -- Header filtering --
+
+    def _filter_headers(self, headers: Dict) -> Dict:
+        """Whitelist-only header filtering."""
+        result = {}
+        for key, value in headers.items():
+            if key.lower() in self.safe_headers:
+                result[key] = value
+        return result
+
+    # -- Applied uniformly to requests and responses --
+
+    def before_record_request(self, request: Any) -> Any:
+        """Sanitize URL, headers, and body of request."""
+        if hasattr(request, "uri"):
+            request.uri = self._sanitize_url(request.uri)
+
+        if hasattr(request, "headers"):
+            request.headers = self._filter_headers(request.headers)
+
+        if hasattr(request, "body") and request.body:
+            if isinstance(request.body, bytes):
+                body_str = request.body.decode("utf-8", errors="ignore")
+                request.body = self._sanitize_body(body_str).encode("utf-8")
+            elif isinstance(request.body, str):
+                request.body = self._sanitize_body(request.body)
+
+        return request
+
+    def before_record_response(self, response: Dict) -> Dict:
+        """Sanitize headers and body of response."""
+        if "headers" in response:
+            response["headers"] = self._filter_headers(response["headers"])
+
+        if "body" in response:
+            body = response["body"]
+            if isinstance(body, dict) and "string" in body:
+                if isinstance(body["string"], bytes):
+                    body_str = body["string"].decode("utf-8", errors="ignore")
+                    body["string"] = self._sanitize_body(body_str).encode("utf-8")
+                elif isinstance(body["string"], str):
+                    body["string"] = self._sanitize_body(body["string"])
+
         return response
 
 
@@ -497,54 +666,53 @@ class CompositeSanitizer(BaseSanitizer):
         return response
 
 
-def create_default_sanitizer(secrets: Dict[str, Any]) -> CompositeSanitizer:
+def extract_values(d: Dict, values: List[str]) -> List[str]:
     """
-    Create a default sanitizer configuration.
+    Extract all string values from a dictionary recursively.
 
-    This creates a composite sanitizer that:
-    1. Removes sensitive headers (Authorization, Cookie, etc.)
-    2. Redacts any secret values found in the config
+    If a string value is valid JSON, parse it and extract inner values too.
+    Results are sorted longest-first to prevent partial replacements.
+    """
+    for key, value in d.items():
+        if isinstance(value, str) and value:
+            values.append(value)
+            # If the string is JSON, parse and extract inner values
+            try:
+                parsed = json.loads(value)
+                if isinstance(parsed, dict):
+                    extract_values(parsed, values)
+                elif isinstance(parsed, list):
+                    for item in parsed:
+                        if isinstance(item, str) and item:
+                            values.append(item)
+                        elif isinstance(item, dict):
+                            extract_values(item, values)
+            except (json.JSONDecodeError, TypeError, ValueError):
+                pass
+        elif isinstance(value, dict):
+            extract_values(value, values)
+        elif isinstance(value, list):
+            for item in value:
+                if isinstance(item, str) and item:
+                    values.append(item)
+                elif isinstance(item, dict):
+                    extract_values(item, values)
+    return values
+
+
+def create_default_sanitizer(secrets: Dict[str, Any]) -> DefaultSanitizer:
+    """
+    Create a default sanitizer from secrets.
+
+    Extracts all string values from the secrets dict and returns a
+    DefaultSanitizer that handles OAuth bodies, JSON responses, headers,
+    and URL parameters automatically.
 
     Args:
         secrets: Dictionary of secret values to redact
 
     Returns:
-        A CompositeSanitizer with sensible defaults
+        A DefaultSanitizer with extracted secret values
     """
-
-    # Extract all string values from secrets recursively
-    def extract_values(d: Dict, values: List[str]) -> List[str]:
-        for key, value in d.items():
-            if isinstance(value, str) and value:
-                values.append(value)
-            elif isinstance(value, dict):
-                extract_values(value, values)
-            elif isinstance(value, list):
-                for item in value:
-                    if isinstance(item, str) and item:
-                        values.append(item)
-                    elif isinstance(item, dict):
-                        extract_values(item, values)
-        return values
-
     secret_values = extract_values(secrets, [])
-
-    sanitizers = [
-        HeaderSanitizer(
-            headers_to_remove=[
-                "authorization",
-                "cookie",
-                "set-cookie",
-                "x-api-key",
-                "api-key",
-                "x-auth-token",
-                "x-access-token",
-            ]
-        ),
-        QueryParameterTokenSanitizer(parameters=["access_token"]),
-    ]
-
-    if secret_values:
-        sanitizers.append(TokenSanitizer(tokens=secret_values))
-
-    return CompositeSanitizer(sanitizers)
+    return DefaultSanitizer(sensitive_values=secret_values)

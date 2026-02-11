@@ -33,6 +33,7 @@ from ..datadirtest import DataDirTester, TestDataDir
 from .recorder import VCRRecorder, VCRRecorderError, CassetteMissingError, SecretsLoadError
 from .sanitizers import (
     BaseSanitizer,
+    DefaultSanitizer,
     TokenSanitizer,
     HeaderSanitizer,
     UrlPatternSanitizer,
@@ -385,6 +386,7 @@ __all__ = [
     "VCRRecorder",
     # Sanitizers
     "BaseSanitizer",
+    "DefaultSanitizer",
     "TokenSanitizer",
     "HeaderSanitizer",
     "UrlPatternSanitizer",
