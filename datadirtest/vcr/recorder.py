@@ -71,7 +71,7 @@ class VCRRecorder:
         cassette_dir: Path,
         secrets: Optional[Dict[str, Any]] = None,
         sanitizers: Optional[List[BaseSanitizer]] = None,
-        freeze_time_at: Optional[str] = DEFAULT_FREEZE_TIME,
+        freeze_time_at: Optional[str] = "auto",
         record_mode: str = "new_episodes",
         match_on: Optional[List[str]] = None,
         cassette_file: str = DEFAULT_CASSETTE_FILE,
@@ -83,8 +83,9 @@ class VCRRecorder:
             cassette_dir: Directory to store cassette files
             secrets: Dictionary of secret values to sanitize from recordings
             sanitizers: List of sanitizers to apply (uses defaults if None)
-            freeze_time_at: ISO timestamp to freeze time at during recording/replay
-                           Set to None to disable time freezing
+            freeze_time_at: ISO timestamp to freeze time at during recording/replay.
+                           Set to 'auto' (default) to read from cassette metadata on replay.
+                           Set to None to disable time freezing.
             record_mode: VCR record mode ('new_episodes', 'none', 'all', 'once')
             match_on: Request matching criteria (default: ['method', 'scheme', 'host', 'port', 'path', 'query'])
             cassette_file: Name of the cassette file (default: 'requests.json')
@@ -260,7 +261,7 @@ class VCRRecorder:
             record_mode="all",
         )
 
-        if self.freeze_time_at:
+        if self.freeze_time_at and self.freeze_time_at != "auto":
             with freeze_time(self.freeze_time_at):
                 with vcr_context:
                     component_runner()
@@ -268,6 +269,7 @@ class VCRRecorder:
             with vcr_context:
                 component_runner()
 
+        self._inject_metadata()
         logger.info(f"Recorded cassette to {self.cassette_path}")
 
     def replay(self, component_runner: Callable[[], None]) -> None:
@@ -292,13 +294,15 @@ class VCRRecorder:
 
         logger.info(f"Replaying HTTP interactions from {self.cassette_path}")
 
+        effective_freeze_time = self._resolve_freeze_time()
+
         vcr_context = self._vcr.use_cassette(
             str(self.cassette_path),
             record_mode="none",
         )
 
-        if self.freeze_time_at:
-            with freeze_time(self.freeze_time_at):
+        if effective_freeze_time:
+            with freeze_time(effective_freeze_time):
                 with vcr_context:
                     component_runner()
         else:
@@ -376,6 +380,60 @@ class VCRRecorder:
             cassette_file=f"vcr_debug_{component_id}_{config_id}_{timestamp}.json",
         )
         recorder.record(component_runner)
+
+    def _inject_metadata(self) -> None:
+        """Inject _metadata into cassette file after recording."""
+        from datetime import datetime, timezone
+
+        if not self.cassette_path.exists():
+            return
+
+        with open(self.cassette_path, "r") as f:
+            cassette = json.load(f)
+
+        cassette["_metadata"] = {
+            "recorded_at": datetime.now(timezone.utc).isoformat(),
+            "freeze_time": self.freeze_time_at,
+            "datadirtest_version": self._get_version(),
+        }
+
+        with open(self.cassette_path, "w") as f:
+            json.dump(cassette, f, indent=2, sort_keys=True)
+
+    @staticmethod
+    def load_metadata(cassette_path: Path) -> Dict[str, Any]:
+        """Load _metadata from a cassette file. Returns empty dict if missing."""
+        cassette_path = Path(cassette_path)
+        if not cassette_path.exists():
+            return {}
+        with open(cassette_path, "r") as f:
+            data = json.load(f)
+        return data.get("_metadata", {})
+
+    @staticmethod
+    def _get_version() -> str:
+        """Get datadirtest package version."""
+        try:
+            from importlib.metadata import version
+
+            return version("datadirtest")
+        except Exception:
+            return "unknown"
+
+    def _resolve_freeze_time(self) -> Optional[str]:
+        """Resolve effective freeze_time, reading from metadata if 'auto'."""
+        if self.freeze_time_at != "auto":
+            return self.freeze_time_at
+
+        metadata = self.load_metadata(self.cassette_path)
+        if not metadata:
+            logger.warning("No metadata in cassette, falling back to default freeze time")
+            return self.DEFAULT_FREEZE_TIME
+
+        # Use recorded_at as freeze time — aligns dates in responses with frozen clock
+        resolved = metadata.get("recorded_at", self.DEFAULT_FREEZE_TIME)
+        logger.info(f"Auto-resolved freeze_time from cassette metadata: {resolved}")
+        return resolved
 
     def clear_cassette(self) -> bool:
         """

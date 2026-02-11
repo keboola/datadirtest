@@ -85,7 +85,7 @@ class VCRTestDataDir(TestDataDir):
         artifact_current_destination: Literal["custom", "runs"] = "runs",
         save_output: bool = False,
         vcr_mode: Literal["record", "replay", "auto"] = "auto",
-        vcr_freeze_time: Optional[str] = "2025-01-01T12:00:00",
+        vcr_freeze_time: Optional[str] = "auto",
         vcr_sanitizers: Optional[List[BaseSanitizer]] = None,
         validate_snapshot: bool = False,
         verbose: bool = False,
@@ -103,7 +103,7 @@ class VCRTestDataDir(TestDataDir):
             artifact_current_destination: Artifact destination type
             save_output: Whether to save output
             vcr_mode: VCR mode - 'record', 'replay', or 'auto'
-            vcr_freeze_time: ISO timestamp to freeze time at (None to disable)
+            vcr_freeze_time: ISO timestamp to freeze time at ('auto' to read from cassette, None to disable)
             vcr_sanitizers: Custom sanitizers for VCR recordings
             validate_snapshot: Whether to validate outputs against snapshot
             verbose: Enable verbose output (full diffs)
@@ -276,7 +276,7 @@ class VCRDataDirTester(DataDirTester):
         save_output: bool = False,
         selected_tests: Optional[List[str]] = None,
         vcr_mode: Literal["record", "replay", "auto"] = "auto",
-        vcr_freeze_time: Optional[str] = "2025-01-01T12:00:00",
+        vcr_freeze_time: Optional[str] = "auto",
         vcr_sanitizers: Optional[List[BaseSanitizer]] = None,
         validate_snapshots: bool = False,
         verbose: bool = False,
@@ -293,7 +293,7 @@ class VCRDataDirTester(DataDirTester):
             save_output: Whether to save output
             selected_tests: List of specific tests to run
             vcr_mode: VCR mode - 'record', 'replay', or 'auto'
-            vcr_freeze_time: ISO timestamp to freeze time at
+            vcr_freeze_time: ISO timestamp to freeze time at ('auto' to read from cassette, None to disable)
             vcr_sanitizers: Custom sanitizers for VCR recordings
             validate_snapshots: Whether to validate outputs against snapshots
             verbose: Enable verbose output
