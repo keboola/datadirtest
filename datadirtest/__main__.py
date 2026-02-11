@@ -23,6 +23,9 @@ Usage:
     # Scaffold without recording
     python -m datadirtest scaffold test_definitions.json tests/functional --no-record
 
+    # Scaffold with external secrets file (deep-merged at recording time only)
+    python -m datadirtest scaffold configs.json tests/functional src/component.py --secrets secrets.json
+
     # Run without VCR (original behavior)
     python -m datadirtest tests/functional src/component.py --no-vcr
 """
@@ -131,6 +134,12 @@ def create_parser():
         help="Only create folder structure, don't record cassettes",
     )
     scaffold_parser.add_argument(
+        "--secrets",
+        type=str,
+        default=None,
+        help="JSON file with real credentials to deep-merge at recording time",
+    )
+    scaffold_parser.add_argument(
         "--freeze-time",
         type=str,
         default="2025-01-01T12:00:00",
@@ -229,6 +238,7 @@ def run_scaffold(args):
 
     scaffolder = TestScaffolder()
     freeze_time = args.freeze_time if args.freeze_time != "disable" else None
+    secrets_file = Path(args.secrets) if args.secrets else None
 
     created_paths = scaffolder.scaffold_from_json(
         definitions_file=definitions_file,
@@ -236,6 +246,7 @@ def run_scaffold(args):
         component_script=component_script,
         record=not args.no_record,
         freeze_time_at=freeze_time,
+        secrets_file=secrets_file,
     )
 
     print(f"Created {len(created_paths)} test folders:")
