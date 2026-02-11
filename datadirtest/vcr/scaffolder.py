@@ -131,6 +131,7 @@ class TestScaffolder:
         record: bool = True,
         freeze_time_at: Optional[str] = "2025-01-01T12:00:00",
         secrets_file: Optional[Path] = None,
+        chain_state: bool = False,
     ) -> List[Path]:
         """
         Create test folders from definitions file.
@@ -144,6 +145,8 @@ class TestScaffolder:
             secrets_file: Optional JSON file with real credentials to merge
                 during recording.  The file should contain a single object
                 whose keys are deep-merged into each config.
+            chain_state: Forward out/state.json from each test as
+                in/state.json for the next test (for ERP token refresh).
 
         Returns:
             List of created test folder paths
@@ -185,6 +188,7 @@ class TestScaffolder:
                 raise ScaffolderError(f"Invalid JSON in secrets file: {e}")
 
         created_paths = []
+        chained_state = None
         for definition in definitions:
             test_path = self._scaffold_single_test(
                 definition=definition,
@@ -193,8 +197,16 @@ class TestScaffolder:
                 record=record,
                 freeze_time_at=freeze_time_at,
                 secrets_override=secrets_override,
+                input_state=chained_state,
             )
             created_paths.append(test_path)
+
+            if chain_state and record:
+                state_path = test_path / "source" / "data" / "out" / "state.json"
+                if state_path.exists():
+                    with open(state_path, "r") as f:
+                        chained_state = json.load(f)
+                    logger.info(f"Chained state from {test_path.name} for next test")
 
         return created_paths
 
@@ -238,6 +250,7 @@ class TestScaffolder:
         record: bool,
         freeze_time_at: Optional[str],
         secrets_override: Optional[Dict[str, Any]] = None,
+        input_state: Optional[Dict[str, Any]] = None,
     ) -> Path:
         """Create folder structure for a single test."""
         # Validate definition
@@ -275,9 +288,10 @@ class TestScaffolder:
             with open(source_data_dir / "config.secrets.json", "w") as f:
                 json.dump(secrets, f, indent=2)
 
-        # Create empty input state
+        # Create input state (chained from previous test or empty)
+        input_state_data = input_state if input_state else {}
         with open(source_data_dir / "in" / "state.json", "w") as f:
-            json.dump({}, f)
+            json.dump(input_state_data, f, indent=2)
 
         logger.info(f"Created test folder structure: {test_dir}")
 
@@ -324,6 +338,15 @@ class TestScaffolder:
                 return value
 
         return replace_in_value(config, secrets)
+
+    @staticmethod
+    def _pretty_print_manifest(path: Path) -> None:
+        """Re-serialize a .manifest file as indented JSON."""
+        with open(path, "r") as f:
+            data = json.load(f)
+        with open(path, "w") as f:
+            json.dump(data, f, indent=2)
+            f.write("\n")
 
     def _record_test(
         self,
@@ -385,8 +408,17 @@ class TestScaffolder:
             logger.error(f"Failed to record cassette for {test_dir.name}: {e}")
             raise ScaffolderError(f"Recording failed for {test_dir.name}: {e}")
 
-        # Copy outputs to expected folder
+        # Pretty-print manifests in-place in source/data/out/
         source_out = source_data_dir / "out"
+        if source_out.exists():
+            for subdir in ["tables", "files"]:
+                src = source_out / subdir
+                if src.exists():
+                    for item in src.iterdir():
+                        if item.is_file() and item.suffix == ".manifest":
+                            self._pretty_print_manifest(item)
+
+        # Copy outputs to expected folder
         if source_out.exists():
             for subdir in ["tables", "files"]:
                 src = source_out / subdir

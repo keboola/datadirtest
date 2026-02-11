@@ -145,6 +145,11 @@ def create_parser():
         default="2025-01-01T12:00:00",
         help="ISO timestamp to freeze time at during recording",
     )
+    scaffold_parser.add_argument(
+        "--chain-state",
+        action="store_true",
+        help="Forward out/state.json from each test to the next (for ERP token refresh)",
+    )
 
     # Snapshot subcommand
     snapshot_parser = subparsers.add_parser(
@@ -247,6 +252,7 @@ def run_scaffold(args):
         record=not args.no_record,
         freeze_time_at=freeze_time,
         secrets_file=secrets_file,
+        chain_state=args.chain_state,
     )
 
     print(f"Created {len(created_paths)} test folders:")
