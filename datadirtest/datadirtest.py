@@ -597,7 +597,11 @@ class DataDirTester:
             for o in os.listdir(directory_path)
             if os.path.isdir(os.path.join(directory_path, o)) and not o.startswith("_")
         ]
-        if {"source", "expected"}.issubset(directories):
+        if "source" in directories:
+            # Normal test — create expected/ if missing (empty dirs aren't tracked by git)
+            expected_dir = os.path.join(directory_path, "expected", "data", "out")
+            os.makedirs(os.path.join(expected_dir, "tables"), exist_ok=True)
+            os.makedirs(os.path.join(expected_dir, "files"), exist_ok=True)
             return False
         elif len(directories) > 0:
             return True
