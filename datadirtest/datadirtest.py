@@ -184,6 +184,13 @@ class TestDataDir(unittest.TestCase):
         if not os.path.exists(self.orig_dir):
             raise ValueError(f"{self.orig_dir} does not exist. ")
         shutil.copytree(self.orig_dir, dst_path)
+
+        # Ensure standard Keboola data dir structure exists (may be missing
+        # if out/ or in/ are gitignored and excluded from Docker context)
+        data_dir = os.path.join(dst_path, "source", "data")
+        for subdir in ["in", "out", "out/tables", "out/files"]:
+            os.makedirs(os.path.join(data_dir, subdir), exist_ok=True)
+
         return dst_path
 
     def run_component(self):
