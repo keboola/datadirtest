@@ -369,6 +369,7 @@ class VCRRecorder:
         cls,
         component_runner: Callable[[], None],
         secrets: Optional[Dict[str, Any]] = None,
+        sanitizers: Optional[List["BaseSanitizer"]] = None,
     ) -> None:
         """
         Record HTTP interactions during a Keboola platform debug run.
@@ -380,6 +381,7 @@ class VCRRecorder:
         Args:
             component_runner: Callable that runs the component
             secrets: Secret values to sanitize from recordings
+            sanitizers: Custom sanitizers to apply (uses defaults if None)
         """
         import os
         from datetime import datetime
@@ -397,6 +399,7 @@ class VCRRecorder:
         recorder = cls(
             cassette_dir=output_dir,
             secrets=secrets or {},
+            sanitizers=sanitizers,
             record_mode="all",
             freeze_time_at=None,
             cassette_file=f"vcr_debug_{component_id}_{config_id}_{timestamp}.json",

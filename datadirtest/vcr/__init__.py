@@ -378,6 +378,27 @@ class VCRDataDirTester(DataDirTester):
         return suite
 
 
+def get_test_cases(functional_dir: str) -> List[str]:
+    """Discover VCR test case names in a functional test directory.
+
+    Returns sorted list of directory names that contain a cassette file,
+    suitable for use with pytest.mark.parametrize.
+
+    Args:
+        functional_dir: Path to the functional tests directory.
+    """
+    func_path = Path(functional_dir)
+    if not func_path.exists():
+        return []
+    return [
+        d.name
+        for d in sorted(func_path.iterdir())
+        if d.is_dir()
+        and not d.name.startswith("_")
+        and (d / "source" / "data" / "cassettes").exists()
+    ]
+
+
 # Re-export for convenience
 __all__ = [
     # Main classes
@@ -403,6 +424,8 @@ __all__ = [
     "capture_output_snapshot",
     "save_output_snapshot",
     "validate_output_snapshot",
+    # Discovery
+    "get_test_cases",
     # Exceptions
     "VCRRecorderError",
     "CassetteMissingError",
