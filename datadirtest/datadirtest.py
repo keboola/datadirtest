@@ -186,10 +186,10 @@ class TestDataDir(unittest.TestCase):
         shutil.copytree(self.orig_dir, dst_path)
 
         # Ensure standard Keboola data dir structure exists (may be missing
-        # if out/ or in/ are gitignored and excluded from Docker context)
-        data_dir = os.path.join(dst_path, "source", "data")
-        for subdir in ["in", "out", "out/tables", "out/files"]:
-            os.makedirs(os.path.join(data_dir, subdir), exist_ok=True)
+        # if out/ or in/ are gitignored or empty dirs excluded from Docker context)
+        for base in ["source/data", "expected/data/out"]:
+            for subdir in ["in", "out", "out/tables", "out/files"] if "source" in base else ["tables", "files"]:
+                os.makedirs(os.path.join(dst_path, base, subdir), exist_ok=True)
 
         return dst_path
 
