@@ -452,8 +452,8 @@ class VCRRecorder:
             logger.warning("No metadata in cassette, falling back to default freeze time")
             return self.DEFAULT_FREEZE_TIME
 
-        # Use recorded_at as freeze time — aligns dates in responses with frozen clock
-        resolved = metadata.get("recorded_at", self.DEFAULT_FREEZE_TIME)
+        # Prefer freeze_time (the value used during recording), fall back to recorded_at
+        resolved = metadata.get("freeze_time") or metadata.get("recorded_at", self.DEFAULT_FREEZE_TIME)
         logger.info(f"Auto-resolved freeze_time from cassette metadata: {resolved}")
         return resolved
 
