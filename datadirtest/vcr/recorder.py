@@ -75,6 +75,7 @@ class VCRRecorder:
         record_mode: str = "new_episodes",
         match_on: Optional[List[str]] = None,
         cassette_file: str = DEFAULT_CASSETTE_FILE,
+        decode_compressed_response: bool = True,
     ):
         """
         Initialize VCR recorder.
@@ -89,6 +90,11 @@ class VCRRecorder:
             record_mode: VCR record mode ('new_episodes', 'none', 'all', 'once')
             match_on: Request matching criteria (default: ['method', 'scheme', 'host', 'port', 'path', 'query'])
             cassette_file: Name of the cassette file (default: 'requests.json')
+            decode_compressed_response: Decompress gzip/deflate response bodies before
+                storing in cassettes. Enabled by default — this ensures cassettes contain
+                readable text and avoids replay failures with libraries that parse raw
+                response bodies (e.g. Zeep/SOAP WSDL parsing). Disable for APIs that
+                return intentionally compressed binary payloads.
         """
         self._check_dependencies()
 
@@ -96,6 +102,7 @@ class VCRRecorder:
         self.cassette_file = cassette_file
         self.cassette_path = self.cassette_dir / cassette_file
         self.secrets = secrets or {}
+        self.decode_compressed_response = decode_compressed_response
         self.freeze_time_at = freeze_time_at
         self.record_mode = record_mode
         self.match_on = match_on or ["method", "scheme", "host", "port", "path", "query"]
@@ -227,6 +234,7 @@ class VCRRecorder:
             cassette_library_dir=str(self.cassette_dir),
             record_mode=self.record_mode,
             match_on=self.match_on,
+            decode_compressed_response=self.decode_compressed_response,
             before_record_request=self._before_record_request,
             before_record_response=self._before_record_response,
         )
