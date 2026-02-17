@@ -4,6 +4,11 @@ VCR integration for datadirtest.
 This module provides VCR (Video Cassette Recording) functionality for
 recording and replaying HTTP interactions in component tests.
 
+Core VCR functionality (recorder, sanitizers, validator, scaffolder) lives
+in the ``keboola.vcr`` package.  This module re-exports those symbols for
+backward compatibility and adds the datadirtest-specific test runner classes
+(VCRTestDataDir, VCRDataDirTester) that integrate VCR with DataDirTester.
+
 Example usage:
     from datadirtest.vcr import VCRDataDirTester
 
@@ -30,8 +35,9 @@ from typing import Dict, List, Literal, Optional, Type
 
 from ..datadirtest import DataDirTester, TestDataDir
 
-from .recorder import VCRRecorder, VCRRecorderError, CassetteMissingError, SecretsLoadError
-from .sanitizers import (
+# Re-export from keboola.vcr for backward compatibility
+from keboola.vcr.recorder import VCRRecorder, VCRRecorderError, CassetteMissingError, SecretsLoadError
+from keboola.vcr.sanitizers import (
     BaseSanitizer,
     DefaultSanitizer,
     TokenSanitizer,
@@ -42,9 +48,10 @@ from .sanitizers import (
     ResponseUrlSanitizer,
     CallbackSanitizer,
     CompositeSanitizer,
+    ConfigSecretsSanitizer,
     create_default_sanitizer,
 )
-from .validator import (
+from keboola.vcr.validator import (
     OutputSnapshot,
     ValidationResult,
     ValidationDiff,
@@ -405,7 +412,7 @@ __all__ = [
     "VCRTestDataDir",
     "VCRDataDirTester",
     "VCRRecorder",
-    # Sanitizers
+    # Sanitizers (re-exported from keboola.vcr)
     "BaseSanitizer",
     "DefaultSanitizer",
     "TokenSanitizer",
@@ -416,8 +423,9 @@ __all__ = [
     "ResponseUrlSanitizer",
     "CallbackSanitizer",
     "CompositeSanitizer",
+    "ConfigSecretsSanitizer",
     "create_default_sanitizer",
-    # Validation
+    # Validation (re-exported from keboola.vcr)
     "OutputSnapshot",
     "ValidationResult",
     "ValidationDiff",

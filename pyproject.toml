@@ -20,24 +20,18 @@ classifiers = [
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = []
+dependencies = [
+    "keboola.vcr>=0.1.0",
+]
 
 [project.optional-dependencies]
-vcr = [
-    "vcrpy>=4.0.0",
-    "freezegun>=1.0.0",
-]
 pytest = [
     "pytest>=7.0.0",
 ]
 all = [
-    "vcrpy>=4.0.0",
-    "freezegun>=1.0.0",
     "pytest>=7.0.0",
 ]
 dev = [
-    "vcrpy>=4.0.0",
-    "freezegun>=1.0.0",
     "pytest>=7.0.0",
     "ruff>=0.1.0",
 ]

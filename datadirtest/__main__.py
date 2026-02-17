@@ -227,7 +227,7 @@ def run_tests(args):
 def run_scaffold(args):
     """Scaffold test folders from definitions file."""
     try:
-        from .vcr.scaffolder import TestScaffolder
+        from keboola.vcr.scaffolder import TestScaffolder
     except ImportError as e:
         print(f"Error: Scaffolder dependencies not available: {e}")
         sys.exit(1)
@@ -263,7 +263,7 @@ def run_scaffold(args):
 def run_snapshot(args):
     """Capture output snapshot for a test."""
     try:
-        from .vcr import save_output_snapshot
+        from keboola.vcr.validator import save_output_snapshot
     except ImportError as e:
         print(f"Error: VCR dependencies not available: {e}")
         sys.exit(1)
