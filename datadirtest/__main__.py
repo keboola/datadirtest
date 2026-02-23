@@ -32,6 +32,7 @@ Usage:
 
 import argparse
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from .datadirtest import DataDirTester
@@ -85,8 +86,8 @@ def create_parser():
     vcr_group.add_argument(
         "--freeze-time",
         type=str,
-        default="2025-01-01T12:00:00",
-        help="ISO timestamp to freeze time at (default: 2025-01-01T12:00:00)",
+        default=None,
+        help="ISO timestamp to freeze time at (default: time of recording)",
     )
 
     # Validation options
@@ -142,8 +143,8 @@ def create_parser():
     scaffold_parser.add_argument(
         "--freeze-time",
         type=str,
-        default="2025-01-01T12:00:00",
-        help="ISO timestamp to freeze time at during recording",
+        default=None,
+        help="ISO timestamp to freeze time at during recording (default: time of recording)",
     )
     scaffold_parser.add_argument(
         "--chain-state",
@@ -202,7 +203,7 @@ def run_tests(args):
             from .vcr import VCRDataDirTester
 
             vcr_mode = get_vcr_mode(args)
-            freeze_time = args.freeze_time if args.freeze_time != "disable" else None
+            freeze_time = None if args.freeze_time == "disable" else args.freeze_time
 
             tester = VCRDataDirTester(
                 data_dir=data_dir,
@@ -242,7 +243,12 @@ def run_scaffold(args):
     component_script = Path(args.component_script) if args.component_script else None
 
     scaffolder = TestScaffolder()
-    freeze_time = args.freeze_time if args.freeze_time != "disable" else None
+    if args.freeze_time == "disable":
+        freeze_time = None
+    elif args.freeze_time is None:
+        freeze_time = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+    else:
+        freeze_time = args.freeze_time
     secrets_file = Path(args.secrets) if args.secrets else None
 
     created_paths = scaffolder.scaffold_from_json(
