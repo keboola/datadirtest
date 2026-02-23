@@ -1,10 +1,6 @@
-[build-system]
-requires = ["setuptools>=61.0", "setuptools_scm"]
-build-backend = "setuptools.build_meta"
-
 [project]
 name = "datadirtest"
-version = "1.9.0"
+version = "2.0.0"
 description = "Functional testing framework for Keboola components with VCR support"
 readme = "README.md"
 license = {text = "MIT"}
@@ -31,9 +27,12 @@ pytest = [
 all = [
     "pytest>=7.0.0",
 ]
+
+[dependency-groups]
 dev = [
     "pytest>=7.0.0",
     "ruff>=0.1.0",
+    "flake8>=5.0.4",
 ]
 
 [project.entry-points."pytest11"]
@@ -43,8 +42,11 @@ datadirtest_vcr = "datadirtest.vcr.pytest_plugin"
 Homepage = "https://github.com/keboola/datadirtest"
 Repository = "https://github.com/keboola/datadirtest"
 
-[tool.setuptools.packages.find]
-include = ["datadirtest*"]
+[[tool.uv.index]]
+name = "testpypi"
+url = "https://test.pypi.org/simple/"
+publish-url = "https://test.pypi.org/legacy/"
+explicit = true
 
 [tool.ruff]
 line-length = 120
