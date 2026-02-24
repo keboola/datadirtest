@@ -33,32 +33,32 @@ import logging
 from pathlib import Path
 from typing import Literal
 
-from ..datadirtest import DataDirTester, TestDataDir
-
 # Re-export from keboola.vcr for backward compatibility
-from keboola.vcr.recorder import VCRRecorder, VCRRecorderError, CassetteMissingError, SecretsLoadError
+from keboola.vcr.recorder import CassetteMissingError, SecretsLoadError, VCRRecorder, VCRRecorderError
 from keboola.vcr.sanitizers import (
     BaseSanitizer,
-    DefaultSanitizer,
-    TokenSanitizer,
-    HeaderSanitizer,
-    UrlPatternSanitizer,
     BodyFieldSanitizer,
-    QueryParamSanitizer,
-    ResponseUrlSanitizer,
     CallbackSanitizer,
     CompositeSanitizer,
     ConfigSecretsSanitizer,
+    DefaultSanitizer,
+    HeaderSanitizer,
+    QueryParamSanitizer,
+    ResponseUrlSanitizer,
+    TokenSanitizer,
+    UrlPatternSanitizer,
     create_default_sanitizer,
 )
 from keboola.vcr.validator import (
     OutputSnapshot,
-    ValidationResult,
     ValidationDiff,
+    ValidationResult,
     capture_output_snapshot,
     save_output_snapshot,
     validate_output_snapshot,
 )
+
+from ..datadirtest import DataDirTester, TestDataDir
 
 logger = logging.getLogger(__name__)
 

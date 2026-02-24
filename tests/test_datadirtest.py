@@ -4,6 +4,7 @@ import textwrap
 import unittest
 from contextlib import contextmanager
 from io import StringIO
+
 from keboola.datadirtest import DataDirTester, TestDataDir
 
 
