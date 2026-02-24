@@ -22,6 +22,8 @@ class TestDataDir(unittest.TestCase):
     specified expected output of that component and its configuration
     """
 
+    __test__ = False
+
     def __init__(
         self,
         data_dir: str,
@@ -351,6 +353,8 @@ class TestChainedDatadirTest(unittest.TestCase):
     """
     A test class that runs a chain of Datadir Tests that pass each other a statefile.
     """
+
+    __test__ = False
 
     def __init__(
         self,
