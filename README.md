@@ -11,13 +11,13 @@ real output directories.
 
 ```bash
 # Basic installation
-pip install datadirtest
+pip install keboola-datadirtest
 
 # With VCR support (HTTP recording/replay)
-pip install "datadirtest[vcr]"
+pip install "keboola-datadirtest[vcr]"
 
 # With all features
-pip install "datadirtest[all]"
+pip install "keboola-datadirtest[all]"
 ```
 
 ### Use of the library ###
@@ -61,10 +61,10 @@ By default it looks for the script at this path:
 
 Then create file `test_functional.py` in the `/path/to/project/tests` folder and input the following:
 
-```
+```python
 import unittest
 
-from datadirtest import DataDirTester
+from keboola.datadirtest import DataDirTester
 
 
 class TestComponent(unittest.TestCase):
@@ -137,7 +137,7 @@ The below code instantiates a pseudo SqlClient and runs the same sequence of que
 ```python
 import unittest
 
-from datadirtest import DataDirTester, TestDataDir
+from keboola.datadirtest import DataDirTester, TestDataDir
 
 class CustomDatadirTest(TestDataDir):
     def setUp(self):
@@ -189,7 +189,7 @@ The `set_up.py` and `tear_down.py` are executed before and after the DataDirTest
 For instance, the `set_up.py` may contain following code:
 
 ```python
-from datadirtest import TestDataDir
+from keboola.datadirtest import TestDataDir
 
 
 def run(context: TestDataDir):
@@ -260,13 +260,13 @@ The VCR module enables recording and replaying HTTP interactions, making tests:
 
 ```bash
 # Install with VCR support
-pip install datadirtest[vcr]
+pip install keboola-datadirtest[vcr]
 
 # Install with pytest support
-pip install datadirtest[pytest]
+pip install keboola-datadirtest[pytest]
 
 # Install all features
-pip install datadirtest[all]
+pip install keboola-datadirtest[all]
 ```
 
 ### Quick Start
@@ -361,7 +361,7 @@ python -m datadirtest tests/functional src/component.py --freeze-time 2024-06-15
 ### Python API
 
 ```python
-from datadirtest import VCRDataDirTester
+from keboola.datadirtest import VCRDataDirTester
 
 # Run with automatic VCR
 tester = VCRDataDirTester(
@@ -377,7 +377,7 @@ tester.run()
 Create `source/data/sanitizers.py` to customize how sensitive data is redacted:
 
 ```python
-from datadirtest.vcr import BaseSanitizer
+from keboola.datadirtest.vcr import BaseSanitizer
 
 class AccountIdSanitizer(BaseSanitizer):
     def before_record_request(self, request):
@@ -422,7 +422,7 @@ Example `definitions.json`:
 Add to your `conftest.py`:
 
 ```python
-pytest_plugins = ["datadirtest.vcr.pytest_plugin"]
+pytest_plugins = ["keboola.datadirtest.vcr.pytest_plugin"]
 ```
 
 Run with pytest:
