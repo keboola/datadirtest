@@ -400,9 +400,7 @@ def get_test_cases(functional_dir: str) -> list[str]:
     return [
         d.name
         for d in sorted(func_path.iterdir())
-        if d.is_dir()
-        and not d.name.startswith("_")
-        and (d / "source" / "data" / "cassettes").exists()
+        if d.is_dir() and not d.name.startswith("_") and (d / "source" / "data" / "cassettes").exists()
     ]
 
 

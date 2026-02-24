@@ -1,3 +1,7 @@
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"
+
 [project]
 name = "keboola.datadirtest"
 version = "0.0.0"  # replaced by the actual version based on the release tag in github actions
@@ -22,7 +26,7 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=7.0.0",
-    "ruff>=0.1.0"
+    "ruff>=0.15.0"
 ]
 
 [project.urls]
@@ -34,6 +38,9 @@ name = "testpypi"
 url = "https://test.pypi.org/simple/"
 publish-url = "https://test.pypi.org/legacy/"
 explicit = true
+
+[tool.uv.build-backend]
+module-name = "keboola.datadirtest"
 
 [tool.ruff]
 line-length = 120
