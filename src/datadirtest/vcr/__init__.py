@@ -31,7 +31,7 @@ Example usage:
 import json
 import logging
 from pathlib import Path
-from typing import Dict, List, Literal, Optional, Type
+from typing import Literal
 
 from ..datadirtest import DataDirTester, TestDataDir
 
@@ -88,14 +88,14 @@ class VCRTestDataDir(TestDataDir):
         data_dir: str,
         component_script: str,
         method_name: str = "compare_source_and_expected",
-        context_parameters: Optional[dict] = None,
+        context_parameters: dict | None = None,
         last_state_override: dict = None,
         artefacts_path: str = None,
         artifact_current_destination: Literal["custom", "runs"] = "runs",
         save_output: bool = False,
         vcr_mode: Literal["record", "replay", "auto"] = "auto",
-        vcr_freeze_time: Optional[str] = "auto",
-        vcr_sanitizers: Optional[List[BaseSanitizer]] = None,
+        vcr_freeze_time: str | None = "auto",
+        vcr_sanitizers: list[BaseSanitizer] | None = None,
         validate_snapshot: bool = False,
         verbose: bool = False,
     ):
@@ -133,7 +133,7 @@ class VCRTestDataDir(TestDataDir):
         self.vcr_sanitizers = vcr_sanitizers
         self.validate_snapshot = validate_snapshot
         self.verbose = verbose
-        self.vcr_recorder: Optional[VCRRecorder] = None
+        self.vcr_recorder: VCRRecorder | None = None
 
     def setUp(self):
         """Set up test including VCR recorder initialization."""
@@ -179,7 +179,7 @@ class VCRTestDataDir(TestDataDir):
             logger.warning(f"Failed to merge secrets: {e}")
 
     @staticmethod
-    def _deep_merge(base: Dict, override: Dict) -> Dict:
+    def _deep_merge(base: dict, override: dict) -> dict:
         """Deep merge two dictionaries, with override taking precedence."""
         result = base.copy()
         for key, value in override.items():
@@ -279,14 +279,14 @@ class VCRDataDirTester(DataDirTester):
         self,
         data_dir: str = Path("./tests/functional").absolute().as_posix(),
         component_script: str = Path("./src/component.py").absolute().as_posix(),
-        test_data_dir_class: Type[TestDataDir] = None,
-        context_parameters: Optional[dict] = None,
+        test_data_dir_class: type[TestDataDir] | None = None,
+        context_parameters: dict | None = None,
         artifact_current_destination: Literal["custom", "runs"] = "runs",
         save_output: bool = False,
-        selected_tests: Optional[List[str]] = None,
+        selected_tests: list[str] | None = None,
         vcr_mode: Literal["record", "replay", "auto"] = "auto",
-        vcr_freeze_time: Optional[str] = "auto",
-        vcr_sanitizers: Optional[List[BaseSanitizer]] = None,
+        vcr_freeze_time: str | None = "auto",
+        vcr_sanitizers: list[BaseSanitizer] | None = None,
         validate_snapshots: bool = False,
         verbose: bool = False,
     ):
@@ -385,7 +385,7 @@ class VCRDataDirTester(DataDirTester):
         return suite
 
 
-def get_test_cases(functional_dir: str) -> List[str]:
+def get_test_cases(functional_dir: str) -> list[str]:
     """Discover VCR test case names in a functional test directory.
 
     Returns sorted list of directory names that contain a cassette file,

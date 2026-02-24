@@ -1,30 +1,33 @@
+[build-system]
+requires = ["uv_build>=0.10.0,<0.11.0"]
+build-backend = "uv_build"
+
 [project]
 name = "datadirtest"
 version = "2.0.0"
 description = "Functional testing framework for Keboola components with VCR support"
 readme = "README.md"
-license = {text = "MIT"}
-requires-python = ">=3.8"
+license = "MIT"
+requires-python = ">=3.10"
 classifiers = [
     "Development Status :: 4 - Beta",
     "Intended Audience :: Developers",
-    "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
 ]
-dependencies = [
-    "keboola.vcr>=0.1.0",
-]
+dependencies = []
 
 [project.optional-dependencies]
+vcr = [
+    "keboola.vcr>=0.1.0",
+]
 pytest = [
     "pytest>=7.0.0",
 ]
 all = [
+    "keboola.vcr>=0.1.0",
     "pytest>=7.0.0",
 ]
 

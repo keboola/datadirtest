@@ -18,7 +18,6 @@ Example test:
 """
 
 from pathlib import Path
-from typing import List, Optional
 
 import pytest
 
@@ -103,7 +102,7 @@ def vcr_mode(request) -> str:
 
 
 @pytest.fixture(scope="session")
-def vcr_freeze_time(request) -> Optional[str]:
+def vcr_freeze_time(request) -> str | None:
     """Get freeze time from command line options."""
     freeze_time = request.config.getoption("--vcr-freeze-time")
     return freeze_time if freeze_time != "disable" else None
@@ -168,7 +167,7 @@ def vcr_test_runner(
 
 
 @pytest.fixture
-def functional_test_dirs(functional_dir) -> List[Path]:
+def functional_test_dirs(functional_dir) -> list[Path]:
     """
     Get list of functional test directories.
 

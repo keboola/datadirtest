@@ -9,22 +9,15 @@ real output directories.
 
 ### Installation
 
-Install via pip from GitHub:
-
 ```bash
 # Basic installation
-pip install git+https://github.com/keboola/datadirtest.git
+pip install datadirtest
 
 # With VCR support (HTTP recording/replay)
-pip install "datadirtest[vcr] @ git+https://github.com/keboola/datadirtest.git"
+pip install "datadirtest[vcr]"
 
 # With all features
-pip install "datadirtest[all] @ git+https://github.com/keboola/datadirtest.git"
-```
-
-Or add to `requirements.txt`:
-```
-datadirtest @ git+https://github.com/keboola/datadirtest.git
+pip install "datadirtest[all]"
 ```
 
 ### Use of the library ###
