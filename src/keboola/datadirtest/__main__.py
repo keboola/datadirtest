@@ -151,16 +151,6 @@ def create_parser():
         action="store_true",
         help="Forward out/state.json from each test to the next (for ERP token refresh)",
     )
-    scaffold_parser.add_argument(
-        "--regenerate",
-        action="store_true",
-        help="Delete all existing cassettes and re-record from live API (takes precedence over --add-missing-cassettes)",
-    )
-    scaffold_parser.add_argument(
-        "--add-missing-cassettes",
-        action="store_true",
-        help="Only record cassettes for tests that don't have one yet; leave existing cassettes unchanged",
-    )
 
     # Snapshot subcommand
     snapshot_parser = subparsers.add_parser(
@@ -269,8 +259,6 @@ def run_scaffold(args):
         freeze_time_at=freeze_time,
         secrets_file=secrets_file,
         chain_state=args.chain_state,
-        regenerate=args.regenerate,
-        add_missing=args.add_missing_cassettes,
     )
 
     print(f"Created {len(created_paths)} test folders:")
