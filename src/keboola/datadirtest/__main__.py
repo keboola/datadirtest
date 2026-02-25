@@ -17,20 +17,26 @@ Usage:
     # Verbose output (show full diffs on failure)
     python -m datadirtest tests/functional src/component.py --verbose
 
-    # Scaffold new tests from definitions
-    python -m datadirtest scaffold test_definitions.json tests/functional src/component.py
+    # Scaffold (all defaults — standard repo layout)
+    python -m datadirtest scaffold
 
-    # Scaffold without recording
-    python -m datadirtest scaffold test_definitions.json tests/functional --no-record
+    # Explicit paths
+    python -m datadirtest scaffold --definitions tests/setup/configs.json \
+        --output tests/functional --component src/component.py
 
-    # Scaffold with external secrets file (deep-merged at recording time only)
-    python -m datadirtest scaffold configs.json tests/functional src/component.py --secrets secrets.json
+    # Without recording
+    python -m datadirtest scaffold --no-record
+
+    # With secrets file
+    python -m datadirtest scaffold --secrets secrets.json
 
     # Run without VCR (original behavior)
     python -m datadirtest tests/functional src/component.py --no-vcr
 """
 
 import argparse
+import json
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -117,17 +123,35 @@ def create_parser():
         help="Scaffold test folders from config definitions",
     )
     scaffold_parser.add_argument(
-        "definitions_file",
-        help="JSON file with test definitions",
+        "--definitions",
+        "--definitions-file",
+        dest="definitions_file",
+        default="tests/setup/configs.json",
+        required=False,
+        help="JSON file with test definitions (default: tests/setup/configs.json)",
     )
     scaffold_parser.add_argument(
-        "output_dir",
-        help="Output directory for test folders",
+        "--output",
+        "--output-dir",
+        dest="output_dir",
+        default="tests/functional",
+        required=False,
+        help="Output directory for test folders (default: tests/functional)",
     )
     scaffold_parser.add_argument(
-        "component_script",
-        nargs="?",
-        help="Component script for recording (optional if --no-record)",
+        "--component",
+        "--component-script",
+        dest="component_script",
+        default="src/component.py",
+        required=False,
+        help="Component script for recording (default: src/component.py)",
+    )
+    scaffold_parser.add_argument(
+        "--input-files",
+        dest="input_files_dir",
+        default="tests/setup/input_files",
+        required=False,
+        help="Directory containing CSV files to auto-copy into scaffolded tests (default: tests/setup/input_files)",
     )
     scaffold_parser.add_argument(
         "--no-record",
@@ -150,6 +174,16 @@ def create_parser():
         "--chain-state",
         action="store_true",
         help="Forward out/state.json from each test to the next (for ERP token refresh)",
+    )
+    scaffold_parser.add_argument(
+        "--regenerate",
+        action="store_true",
+        help="Delete all existing cassettes and re-record from live API",
+    )
+    scaffold_parser.add_argument(
+        "--add-missing-cassettes",
+        action="store_true",
+        help="Only record cassettes for tests that don't have one yet",
     )
 
     # Snapshot subcommand
@@ -225,6 +259,48 @@ def run_tests(args):
     tester.run()
 
 
+def _copy_input_files(created_paths, input_files_dir):
+    """Copy input CSV files into scaffolded test directories based on config.json storage mappings."""
+    if not input_files_dir.exists():
+        return
+
+    for test_dir in created_paths:
+        config_path = test_dir / "source" / "data" / "config.json"
+        if not config_path.exists():
+            continue
+
+        try:
+            config = json.loads(config_path.read_text())
+        except (json.JSONDecodeError, OSError):
+            continue
+
+        storage = config.get("storage", {})
+
+        # Copy table input files
+        for entry in storage.get("input", {}).get("tables", []):
+            dest = entry.get("destination", "")
+            if not dest:
+                continue
+            src = input_files_dir / dest
+            if src.exists():
+                target_dir = test_dir / "source" / "data" / "in" / "tables"
+                target_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, target_dir / dest)
+                print(f"  Copied {src} -> {target_dir / dest}")
+
+        # Copy file input files
+        for entry in storage.get("input", {}).get("files", []):
+            dest = entry.get("destination", "")
+            if not dest:
+                continue
+            src = input_files_dir / dest
+            if src.exists():
+                target_dir = test_dir / "source" / "data" / "in" / "files"
+                target_dir.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(src, target_dir / dest)
+                print(f"  Copied {src} -> {target_dir / dest}")
+
+
 def run_scaffold(args):
     """Scaffold test folders from definitions file."""
     try:
@@ -235,12 +311,11 @@ def run_scaffold(args):
 
     definitions_file = Path(args.definitions_file)
     output_dir = Path(args.output_dir)
+    component_script = Path(args.component_script)
 
-    if not args.no_record and not args.component_script:
-        print("Error: component_script is required when recording (use --no-record to skip)")
+    if not args.no_record and not component_script.exists():
+        print(f"Error: component script not found: {component_script}")
         sys.exit(1)
-
-    component_script = Path(args.component_script) if args.component_script else None
 
     scaffolder = TestScaffolder()
     if args.freeze_time == "disable":
@@ -259,11 +334,15 @@ def run_scaffold(args):
         freeze_time_at=freeze_time,
         secrets_file=secrets_file,
         chain_state=args.chain_state,
+        regenerate=args.regenerate,
+        add_missing=args.add_missing_cassettes,
     )
 
     print(f"Created {len(created_paths)} test folders:")
     for p in created_paths:
         print(f"  - {p}")
+
+    _copy_input_files(created_paths, Path(args.input_files_dir))
 
 
 def run_snapshot(args):
