@@ -1,7 +1,6 @@
-import json
+import logging
 import os
 from pathlib import Path
-import logging
 
 if __name__ == "__main__":
     data_dir = Path(os.environ["KBC_DATADIR"])

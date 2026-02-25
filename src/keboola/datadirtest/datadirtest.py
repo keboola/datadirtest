@@ -13,7 +13,7 @@ from importlib.abc import Loader
 from os import path
 from pathlib import Path
 from runpy import run_path
-from typing import List, Optional, Type, Literal
+from typing import Literal
 
 
 class TestDataDir(unittest.TestCase):
@@ -22,14 +22,16 @@ class TestDataDir(unittest.TestCase):
     specified expected output of that component and its configuration
     """
 
+    __test__ = False
+
     def __init__(
         self,
         data_dir: str,
         component_script: str,
         method_name: str = "compare_source_and_expected",
-        context_parameters: Optional[dict] = None,
-        last_state_override: dict = None,
-        artefacts_path: str = None,
+        context_parameters: dict | None = None,
+        last_state_override: dict | None = None,
+        artefacts_path: str | None = None,
         artifact_current_destination: Literal["custom", "runs"] = "runs",
         save_output: bool = False,
     ):
@@ -173,7 +175,7 @@ class TestDataDir(unittest.TestCase):
     def id(self):
         return path.basename(self.orig_dir)
 
-    def shortDescription(self) -> Optional[str]:
+    def shortDescription(self) -> str | None:
         return path.basename(self.orig_dir)
 
     def _create_temporary_copy(self):
@@ -184,6 +186,13 @@ class TestDataDir(unittest.TestCase):
         if not os.path.exists(self.orig_dir):
             raise ValueError(f"{self.orig_dir} does not exist. ")
         shutil.copytree(self.orig_dir, dst_path)
+
+        # Ensure standard Keboola data dir structure exists (may be missing
+        # if out/ or in/ are gitignored or empty dirs excluded from Docker context)
+        for base in ["source/data", "expected/data/out"]:
+            for subdir in ["in", "out", "out/tables", "out/files"] if "source" in base else ["tables", "files"]:
+                os.makedirs(os.path.join(dst_path, base, subdir), exist_ok=True)
+
         return dst_path
 
     def run_component(self):
@@ -285,7 +294,7 @@ class TestDataDir(unittest.TestCase):
             self.assertEqual(diff_a, diff_b, f"Different lines: \n {differences}")
         self.assertEqual(errors, [], f"Files: {errors} could not be compared")
 
-    def _print_file_differences(self, mismatched_files: List[str], expected_folder: str, real_folder: str):
+    def _print_file_differences(self, mismatched_files: list[str], expected_folder: str, real_folder: str):
         differences = ""
         diff_a = []
         diff_b = []
@@ -345,13 +354,15 @@ class TestChainedDatadirTest(unittest.TestCase):
     A test class that runs a chain of Datadir Tests that pass each other a statefile.
     """
 
+    __test__ = False
+
     def __init__(
         self,
         data_dir: str,
         component_script: str,
         method_name: str = "compare_source_and_expected",
-        context_parameters: Optional[dict] = None,
-        test_data_dir_class: Type[TestDataDir] = TestDataDir,
+        context_parameters: dict | None = None,
+        test_data_dir_class: type[TestDataDir] = TestDataDir,
         artifact_current_destination: Literal["custom", "runs"] = "runs",
         save_output: bool = False,
     ):
@@ -425,7 +436,7 @@ class TestChainedDatadirTest(unittest.TestCase):
         )
 
     @staticmethod
-    def _get_testing_dirs(data_dir: str) -> List:
+    def _get_testing_dirs(data_dir: str) -> list:
         """
         Gets directories within a directory that do not start with an underscore, sorted alphabetically.
 
@@ -466,7 +477,7 @@ class TestChainedDatadirTest(unittest.TestCase):
     def id(self):
         return path.basename(self._chained_tests_directory)
 
-    def shortDescription(self) -> Optional[str]:
+    def shortDescription(self) -> str | None:
         return path.basename(self._chained_tests_directory)
 
 
@@ -488,11 +499,11 @@ class DataDirTester:
         self,
         data_dir: str = Path("./tests/functional").absolute().as_posix(),
         component_script: str = Path("./src/component.py").absolute().as_posix(),
-        test_data_dir_class: Type[TestDataDir] = TestDataDir,
-        context_parameters: Optional[dict] = None,
+        test_data_dir_class: type[TestDataDir] = TestDataDir,
+        context_parameters: dict | None = None,
         artifact_current_destination: Literal["custom", "runs"] = "runs",
         save_output: bool = False,
-        selected_tests: Optional[List[str]] = None,
+        selected_tests: list[str] | None = None,
     ):
         """
 
@@ -534,7 +545,7 @@ class DataDirTester:
             raise AssertionError(f"Functional test suite failed. {result.errors + result.failures}")
 
     @staticmethod
-    def _get_testing_dirs(data_dir: str) -> List:
+    def _get_testing_dirs(data_dir: str) -> list:
         """
         Gets directories within a directory that do not start with an underscore
 
@@ -590,7 +601,11 @@ class DataDirTester:
             for o in os.listdir(directory_path)
             if os.path.isdir(os.path.join(directory_path, o)) and not o.startswith("_")
         ]
-        if {"source", "expected"}.issubset(directories):
+        if "source" in directories:
+            # Normal test — create expected/ if missing (empty dirs aren't tracked by git)
+            expected_dir = os.path.join(directory_path, "expected", "data", "out")
+            os.makedirs(os.path.join(expected_dir, "tables"), exist_ok=True)
+            os.makedirs(os.path.join(expected_dir, "files"), exist_ok=True)
             return False
         elif len(directories) > 0:
             return True

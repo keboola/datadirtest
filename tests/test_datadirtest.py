@@ -4,9 +4,8 @@ import textwrap
 import unittest
 from contextlib import contextmanager
 from io import StringIO
-from typing import Optional
 
-from datadirtest import DataDirTester, TestDataDir
+from keboola.datadirtest import DataDirTester, TestDataDir
 
 
 @contextmanager
@@ -79,7 +78,7 @@ class TestComponent(unittest.TestCase):
                 data_dir: str,
                 component_script: str,
                 method_name: str = "compare_source_and_expected",
-                context_parameters: Optional[dict] = None,
+                context_parameters: dict | None = None,
                 save_output: bool = False,
             ):
                 super().__init__(data_dir, component_script, "test_method", context_parameters, save_output=save_output)
