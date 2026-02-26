@@ -35,8 +35,6 @@ Usage:
 """
 
 import argparse
-import json
-import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -259,48 +257,6 @@ def run_tests(args):
     tester.run()
 
 
-def _copy_input_files(created_paths, input_files_dir):
-    """Copy input CSV files into scaffolded test directories based on config.json storage mappings."""
-    if not input_files_dir.exists():
-        return
-
-    for test_dir in created_paths:
-        config_path = test_dir / "source" / "data" / "config.json"
-        if not config_path.exists():
-            continue
-
-        try:
-            config = json.loads(config_path.read_text())
-        except (json.JSONDecodeError, OSError):
-            continue
-
-        storage = config.get("storage", {})
-
-        # Copy table input files
-        for entry in storage.get("input", {}).get("tables", []):
-            dest = entry.get("destination", "")
-            if not dest:
-                continue
-            src = input_files_dir / dest
-            if src.exists():
-                target_dir = test_dir / "source" / "data" / "in" / "tables"
-                target_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, target_dir / dest)
-                print(f"  Copied {src} -> {target_dir / dest}")
-
-        # Copy file input files
-        for entry in storage.get("input", {}).get("files", []):
-            dest = entry.get("destination", "")
-            if not dest:
-                continue
-            src = input_files_dir / dest
-            if src.exists():
-                target_dir = test_dir / "source" / "data" / "in" / "files"
-                target_dir.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(src, target_dir / dest)
-                print(f"  Copied {src} -> {target_dir / dest}")
-
-
 def run_scaffold(args):
     """Scaffold test folders from definitions file."""
     try:
@@ -335,14 +291,12 @@ def run_scaffold(args):
         secrets_file=secrets_file,
         chain_state=args.chain_state,
         regenerate=args.regenerate,
-        add_missing=args.add_missing_cassettes,
+        input_files_dir=Path(args.input_files_dir),
     )
 
     print(f"Created {len(created_paths)} test folders:")
     for p in created_paths:
         print(f"  - {p}")
-
-    _copy_input_files(created_paths, Path(args.input_files_dir))
 
 
 def run_snapshot(args):

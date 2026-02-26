@@ -153,6 +153,13 @@ class VCRTestDataDir(TestDataDir):
                     logger.info(f"No cassette and no secrets for {self.id()}, running without VCR")
                     super().run_component()
 
+        if (
+            self.vcr_recorder
+            and self.vcr_recorder.last_log_comparison
+            and not self.vcr_recorder.last_log_comparison.success
+        ):
+            self.fail(self.vcr_recorder.last_log_comparison.format_output(verbose=self.verbose))
+
     def compare_source_and_expected(self):
         """Execute and compare with optional snapshot validation."""
         super().compare_source_and_expected()
