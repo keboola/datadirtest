@@ -178,12 +178,6 @@ def create_parser():
         action="store_true",
         help="Delete all existing cassettes and re-record from live API",
     )
-    scaffold_parser.add_argument(
-        "--add-missing-cassettes",
-        action="store_true",
-        help="Only record cassettes for tests that don't have one yet",
-    )
-
     # Snapshot subcommand
     snapshot_parser = subparsers.add_parser(
         "snapshot",
