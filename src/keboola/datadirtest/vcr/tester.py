@@ -7,6 +7,8 @@ DataDirTester infrastructure with VCR recording/replay support.
 
 import json
 import logging
+import runpy
+import sys
 from pathlib import Path
 from typing import Literal
 
@@ -17,6 +19,29 @@ from keboola.vcr.validator import validate_output_snapshot
 from ..datadirtest import DataDirTester, TestDataDir
 
 logger = logging.getLogger(__name__)
+
+
+def _load_vcr_sanitizers_from_script(component_script: str) -> list[BaseSanitizer]:
+    """Load VCR_SANITIZERS defined at module level in the component script.
+
+    Uses runpy.run_path to execute the script in a probe context (not __main__),
+    then extracts the VCR_SANITIZERS global if present. The component directory
+    is temporarily added to sys.path so relative imports resolve correctly.
+
+    Returns an empty list if VCR_SANITIZERS is not defined or loading fails.
+    """
+    component_dir = str(Path(component_script).parent)
+    original_path = sys.path.copy()
+    try:
+        if component_dir not in sys.path:
+            sys.path.insert(0, component_dir)
+        globals_ = runpy.run_path(component_script, run_name="__vcr_probe__")
+        return globals_.get("VCR_SANITIZERS") or []
+    except Exception as e:
+        logger.debug(f"Could not load VCR_SANITIZERS from {component_script}: {e}")
+        return []
+    finally:
+        sys.path[:] = original_path
 
 
 class VCRTestDataDir(TestDataDir):
@@ -81,10 +106,12 @@ class VCRTestDataDir(TestDataDir):
     def _setup_vcr(self):
         """Initialize VCR recorder with test-specific config."""
         try:
+            component_sanitizers = _load_vcr_sanitizers_from_script(self.component_script)
+            sanitizers = component_sanitizers + (self.vcr_sanitizers or []) or None
             self.vcr_recorder = VCRRecorder.from_test_dir(
                 test_data_dir=Path(self.source_data_dir),
                 freeze_time_at=self.vcr_freeze_time,
-                sanitizers=self.vcr_sanitizers,
+                sanitizers=sanitizers,
             )
         except ImportError as e:
             logger.warning(f"VCR dependencies not installed: {e}")
