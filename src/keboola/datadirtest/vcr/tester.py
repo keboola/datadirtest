@@ -107,7 +107,8 @@ class VCRTestDataDir(TestDataDir):
         """Initialize VCR recorder with test-specific config."""
         try:
             component_sanitizers = _load_vcr_sanitizers_from_script(self.component_script)
-            sanitizers = component_sanitizers + (self.vcr_sanitizers or []) or None
+            merged_sanitizers = component_sanitizers + (self.vcr_sanitizers or [])
+            sanitizers = merged_sanitizers or None
             self.vcr_recorder = VCRRecorder.from_test_dir(
                 test_data_dir=Path(self.source_data_dir),
                 freeze_time_at=self.vcr_freeze_time,
