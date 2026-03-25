@@ -139,7 +139,7 @@ def create_parser():
     scaffold_parser.add_argument(
         "--component",
         "--component-script",
-        dest="component_script",
+        dest="scaffold_component_script",
         default="src/component.py",
         required=False,
         help="Component script for recording (default: src/component.py)",
@@ -261,7 +261,7 @@ def run_scaffold(args):
 
     definitions_file = Path(args.definitions_file)
     output_dir = Path(args.output_dir)
-    component_script = Path(args.component_script)
+    component_script = Path(args.scaffold_component_script)
 
     if not args.no_record and not component_script.exists():
         print(f"Error: component script not found: {component_script}")
