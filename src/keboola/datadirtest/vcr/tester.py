@@ -156,9 +156,6 @@ class VCRTestDataDir(TestDataDir):
 
     def run_component(self):
         """Run component with VCR wrapping based on mode."""
-        if self.vcr_mode == "record":
-            self._merge_secrets_into_config()
-
         if self.vcr_recorder is None:
             logger.warning("Running without VCR (dependencies not available)")
             super().run_component()
@@ -200,8 +197,8 @@ class VCRTestDataDir(TestDataDir):
             self.fail(f"Log comparison failed:\n{log_cmp.format_output(verbose=self.verbose)}")
 
         sync_cmp = getattr(self.vcr_recorder, "last_sync_action_comparison", None)
-        if sync_cmp is not None and not sync_cmp["success"]:
-            self.fail(f"Sync action output mismatch:\n{sync_cmp['diff']}")
+        if sync_cmp is not None and not sync_cmp.success:
+            self.fail(f"Sync action output mismatch:\n{sync_cmp.diff}")
 
     def _validate_snapshot(self):
         """Validate outputs against snapshot if it exists."""
