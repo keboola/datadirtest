@@ -182,11 +182,26 @@ class VCRTestDataDir(TestDataDir):
                     super().run_component()
 
     def compare_source_and_expected(self):
-        """Execute and compare with optional snapshot validation."""
+        """Execute and compare with optional snapshot validation, log comparison, and sync action comparison."""
         super().compare_source_and_expected()
 
         if self.validate_snapshot:
             self._validate_snapshot()
+
+        self._assert_vcr_comparisons()
+
+    def _assert_vcr_comparisons(self):
+        """Fail the test if log or sync action comparisons detected regressions."""
+        if self.vcr_recorder is None:
+            return
+
+        log_cmp = getattr(self.vcr_recorder, "last_log_comparison", None)
+        if log_cmp is not None and not log_cmp.success:
+            self.fail(f"Log comparison failed:\n{log_cmp.format_output(verbose=self.verbose)}")
+
+        sync_cmp = getattr(self.vcr_recorder, "last_sync_action_comparison", None)
+        if sync_cmp is not None and not sync_cmp["success"]:
+            self.fail(f"Sync action output mismatch:\n{sync_cmp['diff']}")
 
     def _validate_snapshot(self):
         """Validate outputs against snapshot if it exists."""
