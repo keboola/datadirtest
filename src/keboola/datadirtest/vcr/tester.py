@@ -158,6 +158,8 @@ class VCRTestDataDir(TestDataDir):
         """Run component with VCR wrapping based on mode."""
         if self.vcr_recorder is None:
             logger.warning("Running without VCR (dependencies not available)")
+            if self.vcr_mode == "record":
+                self._merge_secrets_into_config()
             super().run_component()
             return
 
