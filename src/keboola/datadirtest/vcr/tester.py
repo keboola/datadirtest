@@ -194,11 +194,11 @@ class VCRTestDataDir(TestDataDir):
         if self.vcr_recorder is None:
             return
 
-        log_cmp = getattr(self.vcr_recorder, "last_log_comparison", None)
+        log_cmp = self.vcr_recorder.last_log_comparison
         if log_cmp is not None and not log_cmp.success:
             self.fail(f"Log comparison failed:\n{log_cmp.format_output(verbose=self.verbose)}")
 
-        sync_cmp = getattr(self.vcr_recorder, "last_sync_action_comparison", None)
+        sync_cmp = self.vcr_recorder.last_sync_action_comparison
         if sync_cmp is not None and not sync_cmp.success:
             self.fail(f"Sync action output mismatch:\n{sync_cmp.diff}")
 
