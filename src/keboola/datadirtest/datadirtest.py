@@ -365,6 +365,7 @@ class TestChainedDatadirTest(unittest.TestCase):
         test_data_dir_class: type[TestDataDir] = TestDataDir,
         artifact_current_destination: Literal["custom", "runs"] = "runs",
         save_output: bool = False,
+        **kwargs,
     ):
         """
         Args:
@@ -374,6 +375,7 @@ class TestChainedDatadirTest(unittest.TestCase):
             context_parameters (dict): Optional context parameters injected from the DirTester runner.
             artifact_current_destination (str): Optional artifact's destination. Accepts 'custom' or 'runs' Default runs
             save_output (bool): If True, saves the output of each test to results/--NAME-OF-THE-TEST--/data directory
+            **kwargs: Extra keyword arguments forwarded to each sub-test (e.g. VCR parameters).
         """
         super(TestChainedDatadirTest, self).__init__()
 
@@ -384,6 +386,7 @@ class TestChainedDatadirTest(unittest.TestCase):
         self._chained_tests_method = method_name
         self._artifact_current_destination = artifact_current_destination
         self._save_output = save_output
+        self._extra_test_kwargs = kwargs
 
     def runTest(self):
         """
@@ -433,6 +436,7 @@ class TestChainedDatadirTest(unittest.TestCase):
             artefacts_path=artefacts_path,
             artifact_current_destination=self._artifact_current_destination,
             save_output=self._save_output,
+            **self._extra_test_kwargs,
         )
 
     @staticmethod

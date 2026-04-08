@@ -156,11 +156,10 @@ class VCRTestDataDir(TestDataDir):
 
     def run_component(self):
         """Run component with VCR wrapping based on mode."""
-        if self.vcr_mode == "record":
-            self._merge_secrets_into_config()
-
         if self.vcr_recorder is None:
             logger.warning("Running without VCR (dependencies not available)")
+            if self.vcr_mode == "record":
+                self._merge_secrets_into_config()
             super().run_component()
             return
 
@@ -182,11 +181,26 @@ class VCRTestDataDir(TestDataDir):
                     super().run_component()
 
     def compare_source_and_expected(self):
-        """Execute and compare with optional snapshot validation."""
+        """Execute and compare with optional snapshot validation, log comparison, and sync action comparison."""
         super().compare_source_and_expected()
 
         if self.validate_snapshot:
             self._validate_snapshot()
+
+        self._assert_vcr_comparisons()
+
+    def _assert_vcr_comparisons(self):
+        """Fail the test if log or sync action comparisons detected regressions."""
+        if self.vcr_recorder is None:
+            return
+
+        log_cmp = self.vcr_recorder.last_log_comparison
+        if log_cmp is not None and not log_cmp.success:
+            self.fail(f"Log comparison failed:\n{log_cmp.format_output(verbose=self.verbose)}")
+
+        sync_cmp = self.vcr_recorder.last_sync_action_comparison
+        if sync_cmp is not None and not sync_cmp.success:
+            self.fail(f"Sync action output mismatch:\n{sync_cmp.diff}")
 
     def _validate_snapshot(self):
         """Validate outputs against snapshot if it exists."""
@@ -284,6 +298,11 @@ class VCRDataDirTester(DataDirTester):
                     test_data_dir_class=self._DataDirTester__test_class,
                     artifact_current_destination=self._artifact_current_destination,
                     save_output=self._save_output,
+                    vcr_mode=self.vcr_mode,
+                    vcr_freeze_time=self.vcr_freeze_time,
+                    vcr_sanitizers=self.vcr_sanitizers,
+                    validate_snapshot=self.validate_snapshots,
+                    verbose=self.verbose,
                 )
             else:
                 test = self._DataDirTester__test_class(
