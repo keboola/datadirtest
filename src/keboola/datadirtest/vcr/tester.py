@@ -298,6 +298,11 @@ class VCRDataDirTester(DataDirTester):
                     test_data_dir_class=self._DataDirTester__test_class,
                     artifact_current_destination=self._artifact_current_destination,
                     save_output=self._save_output,
+                    vcr_mode=self.vcr_mode,
+                    vcr_freeze_time=self.vcr_freeze_time,
+                    vcr_sanitizers=self.vcr_sanitizers,
+                    validate_snapshot=self.validate_snapshots,
+                    verbose=self.verbose,
                 )
             else:
                 test = self._DataDirTester__test_class(
