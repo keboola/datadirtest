@@ -59,7 +59,7 @@ dev = [
 ]
 
 [package.metadata]
-requires-dist = [{ name = "keboola-vcr", specifier = ">=0.1.0" }]
+requires-dist = [{ name = "keboola-vcr", git = "https://github.com/keboola/python-vcr-tests?branch=feat%2Fdb-vcr-adapter" }]
 
 [package.metadata.requires-dev]
 dev = [
@@ -69,15 +69,11 @@ dev = [
 
 [[package]]
 name = "keboola-vcr"
-version = "0.1.1"
-source = { registry = "https://pypi.org/simple" }
+version = "0.5.0"
+source = { git = "https://github.com/keboola/python-vcr-tests?branch=feat%2Fdb-vcr-adapter#3cf45732c5097c5db58dc4322dcf8b4756844122" }
 dependencies = [
     { name = "freezegun" },
     { name = "vcrpy" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/a5/97bf02f746f285b9260c81dbabdbea11ff56a688f952f35def24dfb4b54c/keboola_vcr-0.1.1.tar.gz", hash = "sha256:f7163c8359553fcedb185bdb2d651afd6b47bbb732a5ec49debd5c749edfd288", size = 23678, upload-time = "2026-02-24T15:33:20.185Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/a3/c7/1bd606a733bcb8be8eac1c096ba4c577ebd57651a020cd1f175836cdba4f/keboola_vcr-0.1.1-py3-none-any.whl", hash = "sha256:98a371cba4bb40a192156341cf7b55bbd6f3975acb095c7531ba503de230133f", size = 26454, upload-time = "2026-02-24T15:33:16.769Z" },
 ]
 
 [[package]]
