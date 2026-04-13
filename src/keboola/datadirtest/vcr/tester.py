@@ -112,14 +112,21 @@ class VCRTestDataDir(TestDataDir):
             component_sanitizers = _load_vcr_sanitizers_from_script(self.component_script)
             merged_sanitizers = component_sanitizers + (self.vcr_sanitizers or [])
             sanitizers = merged_sanitizers or None
-            # Pass DB adapters directly to VCRRecorder — flat architecture,
-            # all protocol adapters activated at the same level.
             db_adapters = [self.db_adapter] if self.db_adapter else []
+
+            # Normalize absolute file paths in tracebacks to relative (src/...)
+            # so log comparisons match between recording and replay environments.
+            import re
+
+            script_dir = str(Path(self.component_script).resolve().parent.parent) + "/"
+            log_normalizers = [(re.escape(script_dir), "")]
+
             self.vcr_recorder = VCRRecorder.from_test_dir(
                 test_data_dir=Path(self.source_data_dir),
                 freeze_time_at=self.vcr_freeze_time,
                 sanitizers=sanitizers,
                 db_adapters=db_adapters,
+                log_normalizers=log_normalizers,
             )
         except ImportError as e:
             logger.warning(f"VCR dependencies not installed: {e}")
