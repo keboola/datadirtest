@@ -12,6 +12,7 @@ import sys
 from pathlib import Path
 from typing import Literal
 
+from keboola.vcr.db_recorder import DBAdapter
 from keboola.vcr.recorder import VCRRecorder
 from keboola.vcr.sanitizers import BaseSanitizer
 from keboola.vcr.validator import validate_output_snapshot
@@ -79,6 +80,7 @@ class VCRTestDataDir(TestDataDir):
         vcr_sanitizers: list[BaseSanitizer] | None = None,
         validate_snapshot: bool = False,
         verbose: bool = False,
+        db_adapter: DBAdapter | None = None,
     ):
         super().__init__(
             data_dir=data_dir,
@@ -96,6 +98,7 @@ class VCRTestDataDir(TestDataDir):
         self.vcr_sanitizers = vcr_sanitizers
         self.validate_snapshot = validate_snapshot
         self.verbose = verbose
+        self.db_adapter = db_adapter
         self.vcr_recorder: VCRRecorder | None = None
 
     def setUp(self):
@@ -104,15 +107,19 @@ class VCRTestDataDir(TestDataDir):
         self._setup_vcr()
 
     def _setup_vcr(self):
-        """Initialize VCR recorder with test-specific config."""
+        """Initialize VCR recorder with HTTP + DB adapter support."""
         try:
             component_sanitizers = _load_vcr_sanitizers_from_script(self.component_script)
             merged_sanitizers = component_sanitizers + (self.vcr_sanitizers or [])
             sanitizers = merged_sanitizers or None
+            # Pass DB adapters directly to VCRRecorder — flat architecture,
+            # all protocol adapters activated at the same level.
+            db_adapters = [self.db_adapter] if self.db_adapter else []
             self.vcr_recorder = VCRRecorder.from_test_dir(
                 test_data_dir=Path(self.source_data_dir),
                 freeze_time_at=self.vcr_freeze_time,
                 sanitizers=sanitizers,
+                db_adapters=db_adapters,
             )
         except ImportError as e:
             logger.warning(f"VCR dependencies not installed: {e}")
@@ -155,7 +162,37 @@ class VCRTestDataDir(TestDataDir):
         return result
 
     def run_component(self):
-        """Run component with VCR wrapping based on mode."""
+        """Run component with VCR wrapping (HTTP + DB) based on mode.
+
+        VCRRecorder manages all protocol adapters (HTTP via vcrpy, DB via
+        db_adapters) at the same level — no nested wrapping.
+
+        Disables the component SDK's auto-VCR detection to prevent a conflicting
+        second layer (the tester already manages VCR externally).
+        """
+        # Prevent component SDK from creating its own VCR replay layer.
+        # ComponentBase._should_vcr_replay detects cassettes/requests.json and
+        # wraps the action with a second VCR replay + stdout capture, which
+        # conflicts with the tester's own VCR layer.
+        # TODO: move this suppression into the component SDK itself (e.g. check
+        # for a _keboola_vcr_managed attribute or similar) so this monkeypatch
+        # is no longer needed.
+        try:
+            from keboola.component.base import ComponentBase
+
+            original_should_replay = ComponentBase._should_vcr_replay
+            ComponentBase._should_vcr_replay = staticmethod(lambda: False)
+            restore = True
+        except ImportError:
+            restore = False
+
+        try:
+            self._run_component_with_vcr()
+        finally:
+            if restore:
+                ComponentBase._should_vcr_replay = original_should_replay
+
+    def _run_component_with_vcr(self):
         if self.vcr_recorder is None:
             logger.warning("Running without VCR (dependencies not available)")
             if self.vcr_mode == "record":
@@ -248,6 +285,7 @@ class VCRDataDirTester(DataDirTester):
         vcr_sanitizers: list[BaseSanitizer] | None = None,
         validate_snapshots: bool = False,
         verbose: bool = False,
+        db_adapter: DBAdapter | None = None,
     ):
         if test_data_dir_class is None:
             test_data_dir_class = VCRTestDataDir
@@ -257,6 +295,7 @@ class VCRDataDirTester(DataDirTester):
         self.vcr_sanitizers = vcr_sanitizers
         self.validate_snapshots = validate_snapshots
         self.verbose = verbose
+        self.db_adapter = db_adapter
 
         vcr_context = {
             "vcr_mode": vcr_mode,
@@ -264,6 +303,7 @@ class VCRDataDirTester(DataDirTester):
             "vcr_sanitizers": vcr_sanitizers,
             "validate_snapshot": validate_snapshots,
             "verbose": verbose,
+            "db_adapter": db_adapter,
         }
 
         if context_parameters:
@@ -316,6 +356,7 @@ class VCRDataDirTester(DataDirTester):
                     vcr_sanitizers=self.vcr_sanitizers,
                     validate_snapshot=self.validate_snapshots,
                     verbose=self.verbose,
+                    db_adapter=self.db_adapter,
                 )
 
             suite.addTest(test)
