@@ -7,6 +7,7 @@ DataDirTester infrastructure with VCR recording/replay support.
 
 import json
 import logging
+import re
 import runpy
 import sys
 from pathlib import Path
@@ -116,8 +117,6 @@ class VCRTestDataDir(TestDataDir):
 
             # Normalize absolute file paths in tracebacks to relative (src/...)
             # so log comparisons match between recording and replay environments.
-            import re
-
             script_dir = str(Path(self.component_script).resolve().parent.parent) + "/"
             log_normalizers = [(re.escape(script_dir), "")]
 
@@ -191,6 +190,7 @@ class VCRTestDataDir(TestDataDir):
             ComponentBase._should_vcr_replay = staticmethod(lambda: False)
             restore = True
         except ImportError:
+            logger.debug("keboola.component not installed, skipping SDK VCR suppression")
             restore = False
 
         try:
@@ -350,6 +350,7 @@ class VCRDataDirTester(DataDirTester):
                     vcr_sanitizers=self.vcr_sanitizers,
                     validate_snapshot=self.validate_snapshots,
                     verbose=self.verbose,
+                    db_adapter=self.db_adapter,
                 )
             else:
                 test = self._DataDirTester__test_class(

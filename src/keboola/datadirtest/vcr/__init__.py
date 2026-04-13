@@ -20,6 +20,7 @@ Example usage:
 """
 
 # Re-export from keboola.vcr for backward compatibility
+from keboola.vcr.db_recorder import DBAdapter, OracleDBAdapter
 from keboola.vcr.recorder import CassetteMissingError, SecretsLoadError, VCRRecorder, VCRRecorderError
 from keboola.vcr.sanitizers import (
     BaseSanitizer,
@@ -51,6 +52,9 @@ __all__ = [
     "VCRTestDataDir",
     "VCRDataDirTester",
     "VCRRecorder",
+    # DB VCR adapters
+    "DBAdapter",
+    "OracleDBAdapter",
     # Sanitizers (re-exported from keboola.vcr)
     "BaseSanitizer",
     "DefaultSanitizer",
