@@ -183,8 +183,8 @@ def create_parser():
         type=str,
         default="auto",
         choices=["oracledb", "auto", "none"],
-        help="DB driver for DB VCR recording. 'auto' (default) detects from component "
-        "imports. Use 'none' to skip DB recording for HTTP-only components.",
+        help="DB driver for DB VCR recording. 'auto' (default) — scaffolder detects DB "
+        "driver from component imports. Use 'none' to skip DB recording for HTTP-only components.",
     )
     # Snapshot subcommand
     snapshot_parser = subparsers.add_parser(
@@ -286,12 +286,15 @@ def run_scaffold(args):
 
     # Resolve DB adapter from --db-driver flag (default: auto-detect)
     db_adapter = None
-    db_driver = getattr(args, "db_driver", "auto")
-    if db_driver == "oracledb":
-        from keboola.vcr.db_recorder import OracleDBAdapter
+    if args.db_driver == "oracledb":
+        try:
+            from keboola.vcr.db_recorder import OracleDBAdapter
 
-        db_adapter = OracleDBAdapter()
-    elif db_driver == "none":
+            db_adapter = OracleDBAdapter()
+        except ImportError as e:
+            print(f"Error: oracledb driver not available: {e}")
+            sys.exit(1)
+    elif args.db_driver == "none":
         db_adapter = None  # explicitly disabled
     # else: "auto" → db_adapter=None, scaffolder auto-detects from component imports
 

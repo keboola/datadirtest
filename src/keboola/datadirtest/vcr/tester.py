@@ -183,21 +183,25 @@ class VCRTestDataDir(TestDataDir):
         # TODO: move this suppression into the component SDK itself (e.g. check
         # for a _keboola_vcr_managed attribute or similar) so this monkeypatch
         # is no longer needed.
+        component_base_cls = None
+        original_should_replay = None
         try:
             from keboola.component.base import ComponentBase
 
-            original_should_replay = ComponentBase._should_vcr_replay
-            ComponentBase._should_vcr_replay = staticmethod(lambda: False)
-            restore = True
+            if hasattr(ComponentBase, "_should_vcr_replay"):
+                component_base_cls = ComponentBase
+                original_should_replay = ComponentBase._should_vcr_replay
+                ComponentBase._should_vcr_replay = staticmethod(lambda: False)
+            else:
+                logger.debug("ComponentBase has no _should_vcr_replay hook, skipping SDK VCR suppression")
         except ImportError:
             logger.debug("keboola.component not installed, skipping SDK VCR suppression")
-            restore = False
 
         try:
             self._run_component_with_vcr()
         finally:
-            if restore:
-                ComponentBase._should_vcr_replay = original_should_replay
+            if component_base_cls is not None:
+                component_base_cls._should_vcr_replay = original_should_replay
 
     def _run_component_with_vcr(self):
         if self.vcr_recorder is None:
