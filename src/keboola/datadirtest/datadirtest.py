@@ -46,7 +46,7 @@ class TestDataDir(unittest.TestCase):
             artifact_current_destination (str): Optional artifact's destination. Accepts 'custom' or 'runs' Default runs
             save_output (bool): If True, saves the output to output/--PATH-TO-THE-TEST-- directory
         """
-        super(TestDataDir, self).__init__(methodName=method_name)
+        super().__init__(methodName=method_name)
         self.component_script = component_script
         self.orig_dir = data_dir
         self.data_dir = self._create_temporary_copy()
@@ -302,7 +302,7 @@ class TestDataDir(unittest.TestCase):
             source_path = os.path.join(real_folder, mis_file)
             expected_path = os.path.join(expected_folder, mis_file)
 
-            with open(source_path, "r") as f1, open(expected_path, "r") as f2:
+            with open(source_path) as f1, open(expected_path) as f2:
                 if source_path.endswith(".manifest"):
                     diff = difflib.unified_diff(
                         json.dumps(json.loads(f1.read())).splitlines(),
@@ -377,7 +377,7 @@ class TestChainedDatadirTest(unittest.TestCase):
             save_output (bool): If True, saves the output of each test to results/--NAME-OF-THE-TEST--/data directory
             **kwargs: Extra keyword arguments forwarded to each sub-test (e.g. VCR parameters).
         """
-        super(TestChainedDatadirTest, self).__init__()
+        super().__init__()
 
         self._component_script = component_script
         self._context_parameters = context_parameters

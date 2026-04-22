@@ -141,10 +141,10 @@ class VCRTestDataDir(TestDataDir):
             return
 
         try:
-            with open(secrets_path, "r") as f:
+            with open(secrets_path) as f:
                 secrets = json.load(f)
 
-            with open(self.source_config_path, "r") as f:
+            with open(self.source_config_path) as f:
                 config = json.load(f)
 
             merged = self._deep_merge(config, secrets)
