@@ -337,7 +337,11 @@ class VCRDataDirTester(DataDirTester):
         import unittest
 
         suite = unittest.TestSuite()
-        vcr_test_class = cast(type[VCRTestDataDir], self._test_class)
+        # Access the name-mangled __test_class from the parent DataDirTester.
+        vcr_test_class = cast(
+            type[VCRTestDataDir],
+            self._DataDirTester__test_class,  # ty: ignore[unresolved-attribute]
+        )
 
         for testing_dir in testing_dirs:
             if self._is_chained_test(testing_dir):

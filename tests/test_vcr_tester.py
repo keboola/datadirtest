@@ -85,7 +85,7 @@ def _make_tester(tmp_path: Path, db_adapter=None) -> VCRDataDirTester:
     tester._context_parameters = {"db_adapter": db_adapter}
     tester._artifact_current_destination = "runs"
     tester._save_output = False
-    tester._test_class = VCRTestDataDir
+    tester._DataDirTester__test_class = VCRTestDataDir  # ty: ignore[unresolved-attribute]
     return tester
 
 

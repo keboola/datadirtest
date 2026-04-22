@@ -381,7 +381,7 @@ class TestChainedDatadirTest(unittest.TestCase):
 
         self._component_script = component_script
         self._context_parameters = context_parameters
-        self._test_class = test_data_dir_class
+        self.__test_class = test_data_dir_class
         self._chained_tests_directory = data_dir
         self._chained_tests_method = method_name
         self._artifact_current_destination = artifact_current_destination
@@ -432,7 +432,7 @@ class TestChainedDatadirTest(unittest.TestCase):
         state_override: dict | None = None,
         artefacts_path: str | None = None,
     ) -> TestDataDir:
-        return self._test_class(
+        return self.__test_class(
             method_name=self._chained_tests_method,
             data_dir=testing_dir,
             component_script=self._component_script,
@@ -530,7 +530,7 @@ class DataDirTester:
         self._data_dir = data_dir
         self._component_script = component_script
         self._context_parameters = context_parameters or {}
-        self._test_class = test_data_dir_class
+        self.__test_class = test_data_dir_class
         self._artifact_current_destination = artifact_current_destination
         self._save_output: bool = bool(save_output or os.environ.get("DIRTEST_SAVE_OUTPUT"))
         self._selected_tests = selected_tests or os.environ.get("DIRTEST_SELECTED_TESTS", "").split(",")
@@ -588,12 +588,12 @@ class DataDirTester:
                     data_dir=testing_dir,
                     component_script=self._component_script,
                     context_parameters=self._context_parameters,
-                    test_data_dir_class=self._test_class,
+                    test_data_dir_class=self.__test_class,
                     artifact_current_destination=self._artifact_current_destination,
                     save_output=self._save_output,
                 )
             else:
-                test = self._test_class(
+                test = self.__test_class(
                     method_name="compare_source_and_expected",
                     data_dir=testing_dir,
                     component_script=self._component_script,
