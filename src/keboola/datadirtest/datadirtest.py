@@ -121,15 +121,15 @@ class TestDataDir(unittest.TestCase):
     def _move_artifacts_to_tmp(self) -> None:
         out_artifacts_path = os.path.join(self.source_data_dir, "artifacts", "out")
         if os.path.exists(out_artifacts_path) and os.listdir(out_artifacts_path):
-            temp_dir = tempfile.mktemp(prefix="artifacts_")
-            shutil.copytree(out_artifacts_path, temp_dir)
+            temp_dir = tempfile.mkdtemp(prefix="artifacts_")
+            shutil.copytree(out_artifacts_path, temp_dir, dirs_exist_ok=True)
             self.out_artifacts_path = temp_dir
 
     @staticmethod
     def _load_module_at_path(run_script_path):
         spec = importlib.util.spec_from_file_location("custom_scripts", run_script_path)
+        assert spec is not None and isinstance(spec.loader, Loader)
         script = importlib.util.module_from_spec(spec)
-        assert isinstance(spec.loader, Loader)
         spec.loader.exec_module(script)
         return script
 
@@ -137,7 +137,7 @@ class TestDataDir(unittest.TestCase):
         end_script_path = os.path.join(self.orig_dir, "source", "tear_down.py")
         self._run_script(end_script_path)
 
-    def _override_input_state(self, input_state: dict):
+    def _override_input_state(self, input_state: dict | None):
         """
         Overrides the input state with provided one. Run in setUp
         Args:
@@ -381,7 +381,7 @@ class TestChainedDatadirTest(unittest.TestCase):
 
         self._component_script = component_script
         self._context_parameters = context_parameters
-        self.__test_class = test_data_dir_class
+        self._test_class = test_data_dir_class
         self._chained_tests_directory = data_dir
         self._chained_tests_method = method_name
         self._artifact_current_destination = artifact_current_destination
@@ -426,8 +426,13 @@ class TestChainedDatadirTest(unittest.TestCase):
     def tearDown(self) -> None:
         self._run_tear_down_script()
 
-    def _build_test(self, testing_dir, state_override: dict = None, artefacts_path: str = None) -> TestDataDir:
-        return self.__test_class(
+    def _build_test(
+        self,
+        testing_dir,
+        state_override: dict | None = None,
+        artefacts_path: str | None = None,
+    ) -> TestDataDir:
+        return self._test_class(
             method_name=self._chained_tests_method,
             data_dir=testing_dir,
             component_script=self._component_script,
@@ -461,8 +466,8 @@ class TestChainedDatadirTest(unittest.TestCase):
     @staticmethod
     def _load_module_at_path(run_script_path):
         spec = importlib.util.spec_from_file_location("custom_scripts", run_script_path)
+        assert spec is not None and isinstance(spec.loader, Loader)
         script = importlib.util.module_from_spec(spec)
-        assert isinstance(spec.loader, Loader)
         spec.loader.exec_module(script)
         return script
 
@@ -525,9 +530,9 @@ class DataDirTester:
         self._data_dir = data_dir
         self._component_script = component_script
         self._context_parameters = context_parameters or {}
-        self.__test_class = test_data_dir_class
+        self._test_class = test_data_dir_class
         self._artifact_current_destination = artifact_current_destination
-        self._save_output = save_output or os.environ.get("DIRTEST_SAVE_OUTPUT")
+        self._save_output: bool = bool(save_output or os.environ.get("DIRTEST_SAVE_OUTPUT"))
         self._selected_tests = selected_tests or os.environ.get("DIRTEST_SELECTED_TESTS", "").split(",")
 
     def run(self):
@@ -583,12 +588,12 @@ class DataDirTester:
                     data_dir=testing_dir,
                     component_script=self._component_script,
                     context_parameters=self._context_parameters,
-                    test_data_dir_class=self.__test_class,
+                    test_data_dir_class=self._test_class,
                     artifact_current_destination=self._artifact_current_destination,
                     save_output=self._save_output,
                 )
             else:
-                test = self.__test_class(
+                test = self._test_class(
                     method_name="compare_source_and_expected",
                     data_dir=testing_dir,
                     component_script=self._component_script,

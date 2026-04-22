@@ -62,7 +62,7 @@ def _make_vcr_test_data_dir(tmp_path: Path, db_adapter=None):
             component_script=script,
             db_adapter=db_adapter,
         )
-        instance._recorder_call_args = mock_recorder.call_args
+        instance._recorder_call_args = mock_recorder.call_args  # ty: ignore[unresolved-attribute]
 
     return instance
 
@@ -85,7 +85,7 @@ def _make_tester(tmp_path: Path, db_adapter=None) -> VCRDataDirTester:
     tester._context_parameters = {"db_adapter": db_adapter}
     tester._artifact_current_destination = "runs"
     tester._save_output = False
-    tester._DataDirTester__test_class = VCRTestDataDir
+    tester._test_class = VCRTestDataDir
     return tester
 
 

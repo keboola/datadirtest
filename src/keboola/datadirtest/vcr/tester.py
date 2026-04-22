@@ -11,7 +11,7 @@ import re
 import runpy
 import sys
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
 from keboola.vcr.db_recorder import DBAdapter
 from keboola.vcr.recorder import VCRRecorder
@@ -72,8 +72,8 @@ class VCRTestDataDir(TestDataDir):
         component_script: str,
         method_name: str = "compare_source_and_expected",
         context_parameters: dict | None = None,
-        last_state_override: dict = None,
-        artefacts_path: str = None,
+        last_state_override: dict | None = None,
+        artefacts_path: str | None = None,
         artifact_current_destination: Literal["custom", "runs"] = "runs",
         save_output: bool = False,
         vcr_mode: Literal["record", "replay", "auto"] = "auto",
@@ -186,7 +186,7 @@ class VCRTestDataDir(TestDataDir):
         component_base_cls = None
         original_should_replay = None
         try:
-            from keboola.component.base import ComponentBase
+            from keboola.component.base import ComponentBase  # ty: ignore[unresolved-import]
 
             if hasattr(ComponentBase, "_should_vcr_replay"):
                 component_base_cls = ComponentBase
@@ -337,6 +337,7 @@ class VCRDataDirTester(DataDirTester):
         import unittest
 
         suite = unittest.TestSuite()
+        vcr_test_class = cast(type[VCRTestDataDir], self._test_class)
 
         for testing_dir in testing_dirs:
             if self._is_chained_test(testing_dir):
@@ -346,7 +347,7 @@ class VCRDataDirTester(DataDirTester):
                     data_dir=testing_dir,
                     component_script=self._component_script,
                     context_parameters=self._context_parameters,
-                    test_data_dir_class=self._DataDirTester__test_class,
+                    test_data_dir_class=vcr_test_class,
                     artifact_current_destination=self._artifact_current_destination,
                     save_output=self._save_output,
                     vcr_mode=self.vcr_mode,
@@ -357,7 +358,7 @@ class VCRDataDirTester(DataDirTester):
                     db_adapter=self.db_adapter,
                 )
             else:
-                test = self._DataDirTester__test_class(
+                test = vcr_test_class(
                     method_name="compare_source_and_expected",
                     data_dir=testing_dir,
                     component_script=self._component_script,
