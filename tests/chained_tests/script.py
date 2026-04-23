@@ -8,7 +8,7 @@ if __name__ == "__main__":
     in_state_path = Path(f"{os.environ['KBC_DATADIR']}/in/state.json")
     last_value = "state"
     if os.path.exists(in_state_path):
-        with open(in_state_path, "r") as inp:
+        with open(in_state_path) as inp:
             last_state = json.load(inp)
             last_value = last_state.get("last_value") + "02" if last_state.get("last_value") else last_value
 

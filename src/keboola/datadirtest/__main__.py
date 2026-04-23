@@ -178,6 +178,14 @@ def create_parser():
         action="store_true",
         help="Delete all existing cassettes and re-record from live API",
     )
+    scaffold_parser.add_argument(
+        "--db-driver",
+        type=str,
+        default="auto",
+        choices=["oracledb", "auto", "none"],
+        help="DB driver for DB VCR recording. 'auto' (default) — scaffolder detects DB "
+        "driver from component imports. Use 'none' to skip DB recording for HTTP-only components.",
+    )
     # Snapshot subcommand
     snapshot_parser = subparsers.add_parser(
         "snapshot",
@@ -276,6 +284,20 @@ def run_scaffold(args):
         freeze_time = args.freeze_time
     secrets_file = Path(args.secrets) if args.secrets else None
 
+    # Resolve DB adapter from --db-driver flag (default: auto-detect)
+    db_adapter = None
+    if args.db_driver == "oracledb":
+        try:
+            from keboola.vcr.db_recorder import OracleDBAdapter
+
+            db_adapter = OracleDBAdapter()
+        except ImportError as e:
+            print(f"Error: oracledb driver not available: {e}")
+            sys.exit(1)
+    elif args.db_driver == "none":
+        db_adapter = None  # explicitly disabled
+    # else: "auto" → db_adapter=None, scaffolder auto-detects from component imports
+
     created_paths = scaffolder.scaffold_from_json(
         definitions_file=definitions_file,
         output_dir=output_dir,
@@ -286,6 +308,7 @@ def run_scaffold(args):
         chain_state=args.chain_state,
         regenerate=args.regenerate,
         input_files_dir=Path(args.input_files_dir),
+        db_adapter=db_adapter,
     )
 
     print(f"Created {len(created_paths)} test folders:")

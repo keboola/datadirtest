@@ -7,11 +7,13 @@ DataDirTester infrastructure with VCR recording/replay support.
 
 import json
 import logging
+import re
 import runpy
 import sys
 from pathlib import Path
-from typing import Literal
+from typing import Literal, cast
 
+from keboola.vcr.db_recorder import DBAdapter
 from keboola.vcr.recorder import VCRRecorder
 from keboola.vcr.sanitizers import BaseSanitizer
 from keboola.vcr.validator import validate_output_snapshot
@@ -70,8 +72,8 @@ class VCRTestDataDir(TestDataDir):
         component_script: str,
         method_name: str = "compare_source_and_expected",
         context_parameters: dict | None = None,
-        last_state_override: dict = None,
-        artefacts_path: str = None,
+        last_state_override: dict | None = None,
+        artefacts_path: str | None = None,
         artifact_current_destination: Literal["custom", "runs"] = "runs",
         save_output: bool = False,
         vcr_mode: Literal["record", "replay", "auto"] = "auto",
@@ -79,6 +81,7 @@ class VCRTestDataDir(TestDataDir):
         vcr_sanitizers: list[BaseSanitizer] | None = None,
         validate_snapshot: bool = False,
         verbose: bool = False,
+        db_adapter: DBAdapter | None = None,
     ):
         super().__init__(
             data_dir=data_dir,
@@ -96,6 +99,7 @@ class VCRTestDataDir(TestDataDir):
         self.vcr_sanitizers = vcr_sanitizers
         self.validate_snapshot = validate_snapshot
         self.verbose = verbose
+        self.db_adapter = db_adapter
         self.vcr_recorder: VCRRecorder | None = None
 
     def setUp(self):
@@ -104,15 +108,24 @@ class VCRTestDataDir(TestDataDir):
         self._setup_vcr()
 
     def _setup_vcr(self):
-        """Initialize VCR recorder with test-specific config."""
+        """Initialize VCR recorder with HTTP + DB adapter support."""
         try:
             component_sanitizers = _load_vcr_sanitizers_from_script(self.component_script)
             merged_sanitizers = component_sanitizers + (self.vcr_sanitizers or [])
             sanitizers = merged_sanitizers or None
+            db_adapters = [self.db_adapter] if self.db_adapter else []
+
+            # Normalize absolute file paths in tracebacks to relative (src/...)
+            # so log comparisons match between recording and replay environments.
+            script_dir = str(Path(self.component_script).resolve().parent.parent) + "/"
+            log_normalizers = [(re.escape(script_dir), "")]
+
             self.vcr_recorder = VCRRecorder.from_test_dir(
                 test_data_dir=Path(self.source_data_dir),
                 freeze_time_at=self.vcr_freeze_time,
                 sanitizers=sanitizers,
+                db_adapters=db_adapters,
+                log_normalizers=log_normalizers,
             )
         except ImportError as e:
             logger.warning(f"VCR dependencies not installed: {e}")
@@ -128,10 +141,10 @@ class VCRTestDataDir(TestDataDir):
             return
 
         try:
-            with open(secrets_path, "r") as f:
+            with open(secrets_path) as f:
                 secrets = json.load(f)
 
-            with open(self.source_config_path, "r") as f:
+            with open(self.source_config_path) as f:
                 config = json.load(f)
 
             merged = self._deep_merge(config, secrets)
@@ -155,7 +168,42 @@ class VCRTestDataDir(TestDataDir):
         return result
 
     def run_component(self):
-        """Run component with VCR wrapping based on mode."""
+        """Run component with VCR wrapping (HTTP + DB) based on mode.
+
+        VCRRecorder manages all protocol adapters (HTTP via vcrpy, DB via
+        db_adapters) at the same level — no nested wrapping.
+
+        Disables the component SDK's auto-VCR detection to prevent a conflicting
+        second layer (the tester already manages VCR externally).
+        """
+        # Prevent component SDK from creating its own VCR replay layer.
+        # ComponentBase._should_vcr_replay detects cassettes/requests.json and
+        # wraps the action with a second VCR replay + stdout capture, which
+        # conflicts with the tester's own VCR layer.
+        # TODO: move this suppression into the component SDK itself (e.g. check
+        # for a _keboola_vcr_managed attribute or similar) so this monkeypatch
+        # is no longer needed.
+        component_base_cls = None
+        original_should_replay = None
+        try:
+            from keboola.component.base import ComponentBase  # ty: ignore[unresolved-import]
+
+            if hasattr(ComponentBase, "_should_vcr_replay"):
+                component_base_cls = ComponentBase
+                original_should_replay = ComponentBase._should_vcr_replay
+                ComponentBase._should_vcr_replay = staticmethod(lambda: False)
+            else:
+                logger.debug("ComponentBase has no _should_vcr_replay hook, skipping SDK VCR suppression")
+        except ImportError:
+            logger.debug("keboola.component not installed, skipping SDK VCR suppression")
+
+        try:
+            self._run_component_with_vcr()
+        finally:
+            if component_base_cls is not None:
+                component_base_cls._should_vcr_replay = original_should_replay
+
+    def _run_component_with_vcr(self):
         if self.vcr_recorder is None:
             logger.warning("Running without VCR (dependencies not available)")
             if self.vcr_mode == "record":
@@ -248,6 +296,7 @@ class VCRDataDirTester(DataDirTester):
         vcr_sanitizers: list[BaseSanitizer] | None = None,
         validate_snapshots: bool = False,
         verbose: bool = False,
+        db_adapter: DBAdapter | None = None,
     ):
         if test_data_dir_class is None:
             test_data_dir_class = VCRTestDataDir
@@ -257,6 +306,7 @@ class VCRDataDirTester(DataDirTester):
         self.vcr_sanitizers = vcr_sanitizers
         self.validate_snapshots = validate_snapshots
         self.verbose = verbose
+        self.db_adapter = db_adapter
 
         vcr_context = {
             "vcr_mode": vcr_mode,
@@ -264,6 +314,7 @@ class VCRDataDirTester(DataDirTester):
             "vcr_sanitizers": vcr_sanitizers,
             "validate_snapshot": validate_snapshots,
             "verbose": verbose,
+            "db_adapter": db_adapter,
         }
 
         if context_parameters:
@@ -286,6 +337,11 @@ class VCRDataDirTester(DataDirTester):
         import unittest
 
         suite = unittest.TestSuite()
+        # Access the name-mangled __test_class from the parent DataDirTester.
+        vcr_test_class = cast(
+            type[VCRTestDataDir],
+            self._DataDirTester__test_class,  # ty: ignore[unresolved-attribute]
+        )
 
         for testing_dir in testing_dirs:
             if self._is_chained_test(testing_dir):
@@ -295,7 +351,7 @@ class VCRDataDirTester(DataDirTester):
                     data_dir=testing_dir,
                     component_script=self._component_script,
                     context_parameters=self._context_parameters,
-                    test_data_dir_class=self._DataDirTester__test_class,
+                    test_data_dir_class=vcr_test_class,
                     artifact_current_destination=self._artifact_current_destination,
                     save_output=self._save_output,
                     vcr_mode=self.vcr_mode,
@@ -303,9 +359,10 @@ class VCRDataDirTester(DataDirTester):
                     vcr_sanitizers=self.vcr_sanitizers,
                     validate_snapshot=self.validate_snapshots,
                     verbose=self.verbose,
+                    db_adapter=self.db_adapter,
                 )
             else:
-                test = self._DataDirTester__test_class(
+                test = vcr_test_class(
                     method_name="compare_source_and_expected",
                     data_dir=testing_dir,
                     component_script=self._component_script,
@@ -316,6 +373,7 @@ class VCRDataDirTester(DataDirTester):
                     vcr_sanitizers=self.vcr_sanitizers,
                     validate_snapshot=self.validate_snapshots,
                     verbose=self.verbose,
+                    db_adapter=self.db_adapter,
                 )
 
             suite.addTest(test)

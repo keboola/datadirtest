@@ -84,6 +84,7 @@ class TestComponent(unittest.TestCase):
                 super().__init__(data_dir, component_script, "test_method", context_parameters, save_output=save_output)
 
             def test_method(self):
+                assert self.context_parameters is not None
                 print(self.context_parameters["custom_parameter"])
 
         injected_value = "injected_parameter"
